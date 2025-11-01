@@ -1,22 +1,16 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
 import {
 	Shield,
 	User,
-	Building,
 	Eye,
 	EyeOff,
 	Mail,
-	Lock,
 	Phone,
 	MapPin,
-	ChevronDown,
 	ArrowLeft,
-	CheckCircle,
 } from "lucide-react";
 
 const Register = () => {
-	const [userType, setUserType] = useState("citizen");
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [formData, setFormData] = useState({
@@ -26,8 +20,6 @@ const Register = () => {
 		phone: "",
 		password: "",
 		confirmPassword: "",
-		department: "",
-		designation: "",
 		city: "",
 		state: "",
 		agreeTerms: false,
@@ -63,21 +55,6 @@ const Register = () => {
 		"Uttar Pradesh",
 		"Uttarakhand",
 		"West Bengal",
-	];
-
-	const departments = [
-		"Revenue Department",
-		"Police Department",
-		"Health Department",
-		"Education Department",
-		"Public Works Department",
-		"Agriculture Department",
-		"Transport Department",
-		"Urban Development",
-		"Rural Development",
-		"Information Technology",
-		"Finance Department",
-		"Other",
 	];
 
 	const handleInputChange = (e) => {
@@ -122,12 +99,6 @@ const Register = () => {
 		}
 		if (!formData.city.trim()) newErrors.city = "City is required";
 		if (!formData.state) newErrors.state = "State is required";
-
-		if (userType === "admin") {
-			if (!formData.department) newErrors.department = "Department is required";
-			if (!formData.designation.trim())
-				newErrors.designation = "Designation is required";
-		}
 
 		if (!formData.agreeTerms)
 			newErrors.agreeTerms = "You must agree to the terms and conditions";
@@ -257,34 +228,6 @@ const Register = () => {
 			textAlign: "center",
 			marginBottom: "32px",
 			fontSize: "16px",
-		},
-		userTypeToggle: {
-			display: "flex",
-			marginBottom: "32px",
-			background: "rgba(255, 255, 255, 0.05)",
-			borderRadius: "12px",
-			padding: "4px",
-		},
-		userTypeButton: {
-			flex: 1,
-			padding: "12px 16px",
-			borderRadius: "8px",
-			border: "none",
-			background: "transparent",
-			color: "#d1d5db",
-			fontSize: "14px",
-			fontWeight: "500",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-			gap: "8px",
-		},
-		userTypeButtonActive: {
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			color: "white",
-			transform: "scale(1.02)",
 		},
 		formGrid: {
 			display: "grid",
@@ -442,10 +385,10 @@ const Register = () => {
 
 			{/* Header */}
 			<header style={styles.header}>
-				<Link to="/home" style={styles.backButton} className="back-button">
+				<a href="/home" style={styles.backButton} className="back-button">
 					<ArrowLeft size={16} />
 					Back to Home
-				</Link>
+				</a>
 				<div style={styles.logo}>
 					<div style={styles.logoIcon}>
 						<Shield size={20} color="white" />
@@ -461,30 +404,6 @@ const Register = () => {
 					<p style={styles.subtitle}>
 						Join GovSecAI to access intelligent e-governance solutions
 					</p>
-
-					{/* User Type Toggle */}
-					<div style={styles.userTypeToggle}>
-						<button
-							style={{
-								...styles.userTypeButton,
-								...(userType === "citizen" ? styles.userTypeButtonActive : {}),
-							}}
-							onClick={() => setUserType("citizen")}
-						>
-							<User size={16} />
-							Citizen
-						</button>
-						<button
-							style={{
-								...styles.userTypeButton,
-								...(userType === "admin" ? styles.userTypeButtonActive : {}),
-							}}
-							onClick={() => setUserType("admin")}
-						>
-							<Building size={16} />
-							Government Official
-						</button>
-					</div>
 
 					<div>
 						<div style={styles.formGrid} className="form-grid">
@@ -623,61 +542,6 @@ const Register = () => {
 							</div>
 						</div>
 
-						{/* Admin-specific fields */}
-						{userType === "admin" && (
-							<>
-								<div style={styles.formGrid} className="form-grid">
-									{/* Department */}
-									<div style={styles.formGroup}>
-										<label style={styles.label}>Department *</label>
-										<select
-											name="department"
-											value={formData.department}
-											onChange={handleInputChange}
-											style={{
-												...styles.select,
-												...(errors.department ? styles.inputError : {}),
-											}}
-											className="select"
-										>
-											<option value="">Select Department</option>
-											{departments.map((dept) => (
-												<option key={dept} value={dept}>
-													{dept}
-												</option>
-											))}
-										</select>
-										{errors.department && (
-											<div style={styles.error}>{errors.department}</div>
-										)}
-									</div>
-
-									{/* Designation */}
-									<div style={styles.formGroup}>
-										<label style={styles.label}>Designation *</label>
-										<div style={styles.inputWrapper}>
-											<input
-												type="text"
-												name="designation"
-												value={formData.designation}
-												onChange={handleInputChange}
-												style={{
-													...styles.input,
-													...(errors.designation ? styles.inputError : {}),
-												}}
-												className="input"
-												placeholder="Enter designation"
-											/>
-											<Building size={16} style={styles.inputIcon} />
-										</div>
-										{errors.designation && (
-											<div style={styles.error}>{errors.designation}</div>
-										)}
-									</div>
-								</div>
-							</>
-						)}
-
 						<div style={styles.formGrid} className="form-grid">
 							{/* Password */}
 							<div style={styles.formGroup}>
@@ -792,9 +656,9 @@ const Register = () => {
 						{/* Login Link */}
 						<div style={styles.loginLink}>
 							Already have an account?{" "}
-							<Link to="/signin" style={styles.link} className="link">
+							<a href="/signin" style={styles.link} className="link">
 								Sign in
-							</Link>
+							</a>
 						</div>
 					</div>
 				</div>

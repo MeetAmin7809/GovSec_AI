@@ -1,4 +1,5 @@
 const mongoose = require("mongoose")
+const response = require("../utils/responseHandler.util.js")
 
 const healthCheck= (req, res)=>{
     const serverStatus = {
@@ -28,12 +29,7 @@ const healthCheck= (req, res)=>{
             break
     }
 
-    return res.status(200).json({
-        success: true,
-        status: 200,
-        data:serverStatus
-
-    })
+    return response(res,200,serverStatus)
 }
 
 module.exports = {
