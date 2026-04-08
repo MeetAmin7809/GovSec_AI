@@ -14,15 +14,14 @@ import {
 	MessageSquare,
 	Lock,
 	Zap,
+	LogIn,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Home = () => {
 	const [activeFeature, setActiveFeature] = useState(0);
-	const [isVisible, setIsVisible] = useState(false);
 
 	useEffect(() => {
-		setIsVisible(true);
 		const interval = setInterval(() => {
 			setActiveFeature((prev) => (prev + 1) % 6);
 		}, 3000);
@@ -88,533 +87,186 @@ const Home = () => {
 		{ label: "Citizen Trust", value: "67%", description: "Improvement" },
 	];
 
-	const styles = {
-		container: {
-			minHeight: "100vh",
-			background: "linear-gradient(135deg, #0f172a, #581c87, #0f172a)",
-			color: "white",
-			overflow: "hidden",
-			fontFamily: "system-ui, -apple-system, sans-serif",
-		},
-		backgroundElements: {
-			position: "fixed",
-			inset: "0",
-			overflow: "hidden",
-			pointerEvents: "none",
-			zIndex: 0,
-		},
-		bgCircle1: {
-			position: "absolute",
-			top: "-160px",
-			right: "-160px",
-			width: "320px",
-			height: "320px",
-			background: "rgba(139, 92, 246, 0.1)",
-			borderRadius: "50%",
-			filter: "blur(80px)",
-			animation: "pulse 4s infinite",
-		},
-		bgCircle2: {
-			position: "absolute",
-			bottom: "-160px",
-			left: "-160px",
-			width: "320px",
-			height: "320px",
-			background: "rgba(59, 130, 246, 0.1)",
-			borderRadius: "50%",
-			filter: "blur(80px)",
-			animation: "pulse 4s infinite 1s",
-		},
-		bgCircle3: {
-			position: "absolute",
-			top: "50%",
-			left: "50%",
-			width: "240px",
-			height: "240px",
-			background: "rgba(6, 182, 212, 0.05)",
-			borderRadius: "50%",
-			filter: "blur(80px)",
-			animation: "ping 6s infinite 2s",
-			transform: "translate(-50%, -50%)",
-		},
-		nav: {
-			position: "relative",
-			zIndex: 50,
-			padding: "16px 24px",
-			background: "rgba(0, 0, 0, 0.2)",
-			backdropFilter: "blur(10px)",
-			borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-		},
-		navContent: {
-			maxWidth: "1280px",
-			margin: "0 auto",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "space-between",
-		},
-		logo: {
-			display: "flex",
-			alignItems: "center",
-			gap: "12px",
-		},
-		logoIcon: {
-			width: "40px",
-			height: "40px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			borderRadius: "8px",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-		},
-		logoText: {
-			fontSize: "24px",
-			fontWeight: "bold",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-		},
-		navLinks: {
-			display: "flex",
-			alignItems: "center",
-			gap: "32px",
-		},
-		navLink: {
-			color: "white",
-			textDecoration: "none",
-			transition: "color 0.3s",
-			cursor: "pointer",
-		},
-		ctaButton: {
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			padding: "8px 24px",
-			borderRadius: "50px",
-			border: "none",
-			color: "white",
-			fontWeight: "600",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			boxShadow: "0 4px 15px rgba(6, 182, 212, 0.3)",
-		},
-		hero: {
-			position: "relative",
-			zIndex: 10,
-			padding: "80px 24px",
-			textAlign: "center",
-		},
-		heroContent: {
-			maxWidth: "1280px",
-			margin: "0 auto",
-			transform: isVisible ? "translateY(0)" : "translateY(40px)",
-			opacity: isVisible ? 1 : 0,
-			transition: "all 1s ease-out",
-		},
-		heroTitle: {
-			fontSize: "4rem",
-			fontWeight: "bold",
-			marginBottom: "32px",
-			lineHeight: 1.1,
-		},
-		heroTitleGradient: {
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-		},
-		heroSubtitle: {
-			fontSize: "20px",
-			color: "#d1d5db",
-			marginBottom: "48px",
-			maxWidth: "800px",
-			margin: "0 auto 48px auto",
-			lineHeight: 1.6,
-		},
-		heroButtons: {
-			display: "flex",
-			gap: "24px",
-			justifyContent: "center",
-			alignItems: "center",
-			flexWrap: "wrap",
-		},
-		primaryButton: {
-			display: "flex",
-			alignItems: "center",
-			gap: "8px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			padding: "16px 32px",
-			borderRadius: "50px",
-			border: "none",
-			color: "white",
-			fontSize: "18px",
-			fontWeight: "600",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			boxShadow: "0 10px 25px rgba(6, 182, 212, 0.3)",
-		},
-		secondaryButton: {
-			padding: "16px 32px",
-			borderRadius: "50px",
-			border: "2px solid rgba(255, 255, 255, 0.2)",
-			background: "transparent",
-			color: "white",
-			fontSize: "18px",
-			fontWeight: "600",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			backdropFilter: "blur(10px)",
-		},
-		statsSection: {
-			position: "relative",
-			zIndex: 10,
-			padding: "64px 24px",
-			maxWidth: "1280px",
-			margin: "0 auto",
-		},
-		statsGrid: {
-			display: "grid",
-			gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-			gap: "32px",
-		},
-		statCard: {
-			textAlign: "center",
-			background: "rgba(255, 255, 255, 0.05)",
-			backdropFilter: "blur(10px)",
-			borderRadius: "16px",
-			padding: "24px",
-			border: "1px solid rgba(255, 255, 255, 0.1)",
-			transition: "all 0.3s",
-		},
-		statValue: {
-			fontSize: "36px",
-			fontWeight: "bold",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-			marginBottom: "8px",
-		},
-		featuresSection: {
-			position: "relative",
-			zIndex: 10,
-			padding: "80px 24px",
-			maxWidth: "1280px",
-			margin: "0 auto",
-		},
-		sectionTitle: {
-			textAlign: "center",
-			marginBottom: "64px",
-		},
-		sectionTitleText: {
-			fontSize: "48px",
-			fontWeight: "bold",
-			marginBottom: "24px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-		},
-		sectionSubtitle: {
-			fontSize: "20px",
-			color: "#d1d5db",
-			maxWidth: "600px",
-			margin: "0 auto",
-		},
-		featuresGrid: {
-			display: "grid",
-			gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
-			gap: "32px",
-		},
-		featureCard: {
-			position: "relative",
-			padding: "32px",
-			borderRadius: "16px",
-			border: "1px solid rgba(255, 255, 255, 0.1)",
-			backdropFilter: "blur(10px)",
-			transition: "all 0.5s",
-			cursor: "pointer",
-		},
-		featureIcon: {
-			width: "64px",
-			height: "64px",
-			borderRadius: "16px",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-			marginBottom: "24px",
-			transition: "transform 0.3s",
-		},
-		featureTitle: {
-			fontSize: "20px",
-			fontWeight: "bold",
-			marginBottom: "16px",
-			color: "white",
-			transition: "color 0.3s",
-		},
-		featureDescription: {
-			color: "#d1d5db",
-			lineHeight: 1.6,
-		},
-		techSection: {
-			position: "relative",
-			zIndex: 10,
-			padding: "80px 24px",
-			maxWidth: "1280px",
-			margin: "0 auto",
-		},
-		techGrid: {
-			display: "grid",
-			gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-			gap: "24px",
-		},
-		techCard: {
-			background: "rgba(255, 255, 255, 0.05)",
-			backdropFilter: "blur(10px)",
-			borderRadius: "12px",
-			padding: "16px",
-			border: "1px solid rgba(255, 255, 255, 0.1)",
-			textAlign: "center",
-			transition: "all 0.3s",
-		},
-		techIcon: {
-			width: "48px",
-			height: "48px",
-			background: "linear-gradient(135deg, #8b5cf6, #ec4899)",
-			borderRadius: "8px",
-			margin: "0 auto 12px auto",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-		},
-		ctaSection: {
-			position: "relative",
-			zIndex: 10,
-			padding: "80px 24px",
-			maxWidth: "800px",
-			margin: "0 auto",
-			textAlign: "center",
-		},
-		ctaCard: {
-			background:
-				"linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1))",
-			backdropFilter: "blur(10px)",
-			borderRadius: "24px",
-			padding: "48px",
-			border: "1px solid rgba(255, 255, 255, 0.1)",
-		},
-		ctaTitle: {
-			fontSize: "36px",
-			fontWeight: "bold",
-			marginBottom: "24px",
-		},
-		ctaSubtitle: {
-			fontSize: "20px",
-			color: "#d1d5db",
-			marginBottom: "32px",
-		},
-		ctaButtons: {
-			display: "flex",
-			gap: "16px",
-			justifyContent: "center",
-			flexWrap: "wrap",
-		},
-		footer: {
-			position: "relative",
-			zIndex: 10,
-			padding: "48px 24px",
-			background: "rgba(0, 0, 0, 0.2)",
-			backdropFilter: "blur(10px)",
-			borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-		},
-		footerContent: {
-			maxWidth: "1280px",
-			margin: "0 auto",
-			display: "flex",
-			justifyContent: "space-between",
-			alignItems: "center",
-			flexWrap: "wrap",
-			gap: "16px",
-		},
-	};
-
 	return (
-		<div style={styles.container}>
-			{/* CSS Animations */}
-			<style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.05); }
-        }
-        @keyframes ping {
-          0% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.1); }
-          100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
-        }
-        .nav-link:hover { color: #06b6d4 !important; }
-        .cta-button:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4); }
-        .primary-button:hover { transform: scale(1.05); box-shadow: 0 15px 35px rgba(6, 182, 212, 0.4); }
-        .secondary-button:hover { background: rgba(255, 255, 255, 0.1); }
-        .stat-card:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-5px); }
-        .feature-card:hover .feature-icon { transform: scale(1.1); }
-        .feature-card:hover .feature-title { color: #06b6d4; }
-        .tech-card:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-5px); }
-        @media (max-width: 768px) {
-          .hero-title { font-size: 2.5rem !important; }
-          .nav-links { display: none; }
-          .hero-buttons { flex-direction: column; }
-        }
-      `}</style>
-
-			{/* Animated Background Elements */}
-			<div style={styles.backgroundElements}>
-				<div style={styles.bgCircle1}></div>
-				<div style={styles.bgCircle2}></div>
-				<div style={styles.bgCircle3}></div>
+		<div className="min-h-screen bg-[#020617] text-white selection:bg-[#0ed7b2]/30 selection:text-[#0ed7b2] font-sans">
+			{/* Background Visuals */}
+			<div className="fixed inset-0 pointer-events-none overflow-hidden">
+				<div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[#0ed7b2]/10 rounded-full blur-[140px] animate-pulse" />
+				<div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#3b82f6]/10 rounded-full blur-[140px] animate-pulse delay-1000" />
 			</div>
 
 			{/* Navigation */}
-			<nav style={styles.nav}>
-				<div style={styles.navContent}>
-					<div style={styles.logo}>
-						<div style={styles.logoIcon}>
-							<Shield size={24} color="white" />
-						</div>
-						<span style={styles.logoText}>GovSecAI</span>
+			<nav className="fixed top-0 left-0 right-0 z-50 bg-[#020617]/50 backdrop-blur-xl border-b border-white/5">
+				<div className="max-w-7xl mx-auto px-8 h-24 flex items-center justify-between">
+					<div className="flex items-center gap-4">
+						<div className="gov-logo scale-110">G</div>
+						<span className="text-2xl font-black tracking-tighter uppercase whitespace-nowrap">GovSecAI</span>
 					</div>
-					<div style={styles.navLinks} className="nav-links">
-						<a href="#features" style={styles.navLink} className="nav-link">
-							Features
-						</a>
-						<a href="#about" style={styles.navLink} className="nav-link">
-							About
-						</a>
-						<Link
-							to="/register"
-							style={styles.ctaButton}
-							className="cta-button"
-						>
-							Get Started
-						</Link>
+					
+					<div className="hidden md:flex items-center gap-12">
+						<a href="#features" className="text-[10px] font-black tracking-[0.2em] text-slate-500 hover:text-[#0ed7b2] transition-colors uppercase">Capabilities</a>
+						<a href="#framework" className="text-[10px] font-black tracking-[0.2em] text-slate-500 hover:text-[#0ed7b2] transition-colors uppercase">Framework</a>
+						<div className="flex items-center gap-4">
+							<Link 
+								to="/signin" 
+								className="text-[10px] font-black tracking-[0.2em] text-white px-6 py-2 border border-white/10 rounded-xl hover:bg-white/5 transition-all uppercase"
+							>
+								Log In
+							</Link>
+							<Link 
+								to="/register" 
+								className="text-[10px] font-black tracking-[0.2em] bg-[#0ed7b2] text-[#020617] px-6 py-2 rounded-xl hover:bg-[#059669] transition-all shadow-[0_0_20px_rgba(14,215,178,0.2)] uppercase"
+							>
+								Initialize
+							</Link>
+						</div>
 					</div>
 				</div>
 			</nav>
 
 			{/* Hero Section */}
-			<section style={styles.hero}>
-				<div style={styles.heroContent}>
-					<h1 style={styles.heroTitle} className="hero-title">
-						<span style={styles.heroTitleGradient}>Intelligent</span>
-						<br />
-						<span>e-Governance</span>
+			<section className="relative pt-48 pb-32 px-8">
+				<div className="max-w-7xl mx-auto text-center relative z-10">
+					<div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0ed7b2]/5 border border-[#0ed7b2]/10 text-[#0ed7b2] text-[10px] font-black uppercase tracking-[0.3em] mb-12 animate-pop-in">
+						<Zap size={12} fill="currentColor" />
+						Intelligence Core V4.2
+					</div>
+					<h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-10 leading-[0.85] uppercase">
+						Next Gen <br />
+						<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0ed7b2] via-white to-[#3b82f6]">Secure Governance</span>
 					</h1>
-					<p style={styles.heroSubtitle}>
-						AI-powered risk detection, policy simulation, and secure
-						transparency for modern government operations. Detect fraud early,
-						analyze citizen sentiment, and optimize policies with machine
-						learning.
+					<p className="max-w-2xl mx-auto text-slate-400 text-lg md:text-xl font-bold leading-relaxed mb-16 uppercase tracking-tight opacity-80">
+						Bridging administration and citizens through <br className="hidden md:block" /> decentralized intelligence and secure protocols.
 					</p>
-
-					<div style={styles.heroButtons} className="hero-buttons">
-						<button style={styles.primaryButton} className="primary-button">
-							<Play size={20} />
-							Watch Demo
-							<ChevronRight size={20} />
-						</button>
-						<button style={styles.secondaryButton} className="secondary-button">
-							Learn More
-						</button>
+					
+					<div className="flex flex-col sm:flex-row items-center justify-center gap-8">
+						<Link 
+							to="/register" 
+							className="w-full sm:w-auto bg-[#0ed7b2] hover:bg-[#059669] text-[#020617] px-12 py-6 rounded-2xl text-sm font-black transition-all shadow-[0_0_40px_rgba(14,215,178,0.3)] flex items-center justify-center gap-3 active:scale-95 group uppercase tracking-[0.2em]"
+						>
+							Initialize Portal
+							<ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+						</Link>
+						<Link 
+							to="/signin" 
+							className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-white border border-white/10 px-12 py-6 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
+						>
+							<LogIn size={20} />
+							Member Login
+						</Link>
 					</div>
 				</div>
 			</section>
 
-			{/* Stats Section */}
-			<section style={styles.statsSection}>
-				<div style={styles.statsGrid}>
-					{stats.map((stat, index) => (
-						<div key={index} style={styles.statCard} className="stat-card">
-							<div style={styles.statValue}>{stat.value}</div>
-							<div
-								style={{
-									color: "#d1d5db",
-									fontSize: "14px",
-									marginBottom: "4px",
-								}}
-							>
-								{stat.description}
+			{/* Stats Grid */}
+			<section className="py-24 px-8 border-y border-white/5 bg-white/[0.01]">
+				<div className="max-w-7xl mx-auto">
+					<div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
+						{stats.map((stat, i) => (
+							<div key={i} className="text-center group">
+								<div className="text-5xl font-black text-white mb-3 group-hover:text-[#0ed7b2] transition-colors tracking-tighter">{stat.value}</div>
+								<div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0ed7b2] mb-2">{stat.label}</div>
+								<div className="text-xs text-slate-500 font-bold uppercase tracking-tight">{stat.description}</div>
 							</div>
-							<div style={{ fontWeight: "600" }}>{stat.label}</div>
-						</div>
-					))}
+						))}
+					</div>
 				</div>
 			</section>
 
-			{/* Features Section */}
-			<section id="features" style={styles.featuresSection}>
-				<div style={styles.sectionTitle}>
-					<h2 style={styles.sectionTitleText}>Powerful Features</h2>
-					<p style={styles.sectionSubtitle}>
-						Comprehensive AI-driven modules designed to transform government
-						operations and enhance citizen trust
-					</p>
-				</div>
+			{/* Features */}
+			<section id="features" className="py-32 px-8">
+				<div className="max-w-7xl mx-auto">
+					<div className="text-center mb-24">
+						<div className="text-[#0ed7b2] text-[10px] font-black uppercase tracking-[0.3em] mb-4">Core Capacities</div>
+						<h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-tight">Advanced Systems <br /> Infrastructure</h2>
+					</div>
 
-				<div style={styles.featuresGrid}>
-					{features.map((feature, index) => (
-						<div
-							key={index}
-							style={{
-								...styles.featureCard,
-								background:
-									activeFeature === index
-										? "rgba(255, 255, 255, 0.1)"
-										: "rgba(255, 255, 255, 0.05)",
-								transform: activeFeature === index ? "scale(1.02)" : "scale(1)",
-								boxShadow:
-									activeFeature === index
-										? "0 20px 40px rgba(0, 0, 0, 0.3)"
-										: "none",
-							}}
-							className="feature-card"
-							onMouseEnter={() => setActiveFeature(index)}
-						>
-							<div
-								style={{ ...styles.featureIcon, background: feature.color }}
-								className="feature-icon"
-							>
-								{feature.icon}
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+						{features.map((feature, i) => (
+							<div key={i} className="gov-card p-12 group hover:border-[#0ed7b2]/40 transition-all duration-500 flex flex-col items-center text-center">
+								<div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-[#0ed7b2] mb-10 group-hover:scale-110 group-hover:bg-[#0ed7b2]/10 transition-all duration-700 shadow-inner">
+									{feature.icon}
+								</div>
+								<h3 className="text-xl font-black mb-4 uppercase tracking-tight group-hover:text-[#0ed7b2] transition-colors">{feature.title}</h3>
+								<p className="text-slate-400 font-bold leading-relaxed text-sm opacity-80 uppercase tracking-tight">{feature.description}</p>
 							</div>
-							<h3 style={styles.featureTitle} className="feature-title">
-								{feature.title}
-							</h3>
-							<p style={styles.featureDescription}>{feature.description}</p>
-							<div
-								style={{
-									position: "absolute",
-									top: "16px",
-									right: "16px",
-									opacity: activeFeature === index ? 1 : 0,
-									transition: "opacity 0.3s",
-								}}
-							>
-								<ChevronRight size={20} color="#06b6d4" />
+						))}
+					</div>
+				</div>
+			</section>
+
+			{/* Framework Info */}
+			<section id="framework" className="py-32 px-8 bg-white/[0.01] border-t border-white/5 overflow-hidden">
+				<div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
+					<div className="flex-1 space-y-8 text-left">
+						<div className="text-[#3b82f6] text-[10px] font-black uppercase tracking-[0.3em]">Technical Framework</div>
+						<h2 className="text-5xl font-black tracking-tighter uppercase leading-none text-white">Zero Trust <br /> <span className="text-slate-500">Architecture</span></h2>
+						<p className="text-slate-400 text-lg font-bold leading-relaxed uppercase tracking-tight opacity-70">
+							Leveraging homomorphic encryption and blockchain ledgers to ensure absolute integrity of administrative data across all nodes.
+						</p>
+						<div className="flex flex-wrap gap-4 pt-4">
+							{["BERT TRANSFORMERS", "BLOCKCHAIN LEDGER", "SECURE ENCLAVE", "ZK PROOFS"].map(tech => (
+								<span key={tech} className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400">
+									{tech}
+								</span>
+							))}
+						</div>
+					</div>
+					<div className="flex-1 relative">
+						<div className="p-10 rounded-[40px] bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 backdrop-blur-3xl relative z-10">
+							<div className="aspect-square flex items-center justify-center">
+								<Shield size={240} className="text-[#0ed7b2] opacity-20 absolute" />
+								<div className="relative space-y-6 w-full uppercase tracking-widest">
+									<div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+										<CheckCircle className="text-[#0ed7b2]" />
+										<span className="text-xs font-black">Identity Verified</span>
+									</div>
+									<div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 ml-8 opacity-60">
+										<Lock className="text-[#3b82f6]" />
+										<span className="text-xs font-black">Encrypted Tunnel</span>
+									</div>
+									<div className="flex items-center gap-4 bg-[#0ed7b2]/10 p-4 rounded-2xl border border-[#0ed7b2]/20">
+										<Zap className="text-[#0ed7b2]" />
+										<span className="text-xs font-black">Node: GLOBAL_PRIMARY</span>
+									</div>
+								</div>
 							</div>
 						</div>
-					))}
+						<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[#0ed7b2]/5 rounded-full blur-[100px] -z-1" />
+					</div>
+				</div>
+			</section>
+
+			{/* Final CTA */}
+			<section className="py-40 px-8 text-center bg-[#020617] relative">
+				<div className="max-w-4xl mx-auto space-y-12 relative z-10">
+					<h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85]">Join The <br /><span className="text-[#0ed7b2]">Secure Future</span></h2>
+					<p className="text-slate-400 text-xl font-bold uppercase tracking-tight opacity-70">Initialize your node session today to participate in a more transparent and efficient society.</p>
+					<div className="flex justify-center">
+						<Link 
+							to="/register" 
+							className="bg-white text-[#020617] px-16 py-8 rounded-[30px] text-lg font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)]"
+						>
+							Initialize Now
+						</Link>
+					</div>
 				</div>
 			</section>
 
 			{/* Footer */}
-			<footer style={styles.footer}>
-				<div style={styles.footerContent}>
-					<div style={styles.logo}>
-						<div style={{ ...styles.logoIcon, width: "32px", height: "32px" }}>
-							<Shield size={20} color="white" />
-						</div>
-						<span style={{ ...styles.logoText, fontSize: "20px" }}>
-							GovSecAI
-						</span>
+			<footer className="py-24 px-8 border-t border-white/5 bg-[#020617] text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em]">
+				<div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
+					<div className="flex items-center gap-4 opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+						<div className="gov-logo">G</div>
+						<span className="text-xl font-black tracking-tighter lowercase">GovSecAI</span>
 					</div>
-					<div style={{ color: "#9ca3af", fontSize: "14px" }}>
-						© 2024 GovSecAI. Empowering transparent governance through AI.
+					<div className="flex gap-12">
+						<a href="#" className="hover:text-white transition-colors">Privacy</a>
+						<a href="#" className="hover:text-white transition-colors">Security</a>
+						<a href="#" className="hover:text-white transition-colors">Nodes</a>
+					</div>
+					<div>
+						&copy; 2026 DEPT. OF SECURE GOVERNANCE INFRASTRUCTURE
 					</div>
 				</div>
 			</footer>
