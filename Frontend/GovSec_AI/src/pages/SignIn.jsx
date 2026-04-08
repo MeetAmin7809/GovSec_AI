@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 import {
 	Shield,
 	Eye,
@@ -11,25 +13,26 @@ import {
 	Building,
 } from "lucide-react";
 
+const API_BASE = "http://localhost:8001/api/v1";
+
 const SignIn = () => {
+	const navigate = useNavigate();
 	const [userType, setUserType] = useState("citizen");
 	const [showPassword, setShowPassword] = useState(false);
 	const [formData, setFormData] = useState({
 		email: "",
 		password: "",
-		rememberMe: false,
 	});
 	const [errors, setErrors] = useState({});
 	const [isLoading, setIsLoading] = useState(false);
 
 	const handleInputChange = (e) => {
-		const { name, value, type, checked } = e.target;
+		const { name, value } = e.target;
 		setFormData((prev) => ({
 			...prev,
-			[name]: type === "checkbox" ? checked : value,
+			[name]: value,
 		}));
 
-		// Clear error when user starts typing
 		if (errors[name]) {
 			setErrors((prev) => ({
 				...prev,
@@ -40,19 +43,14 @@ const SignIn = () => {
 
 	const validateForm = () => {
 		const newErrors = {};
-
 		if (!formData.email.trim()) {
 			newErrors.email = "Email is required";
 		} else if (!/\S+@\S+\.\S+/.test(formData.email)) {
 			newErrors.email = "Please enter a valid email";
 		}
-
 		if (!formData.password) {
 			newErrors.password = "Password is required";
-		} else if (formData.password.length < 6) {
-			newErrors.password = "Password must be at least 6 characters";
 		}
-
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
 	};
@@ -60,508 +58,147 @@ const SignIn = () => {
 	const handleSubmit = async () => {
 		if (validateForm()) {
 			setIsLoading(true);
-			console.log("Login submitted:", { ...formData, userType });
+			try {
+				const res = await axios.post(`${API_BASE}/auth/login`, {
+					email: formData.email,
+					password: formData.password,
+				});
 
-			// Simulate API call
-			setTimeout(() => {
+				const { token, user } = res.data.data;
+				sessionStorage.setItem("govsec_token", token);
+				sessionStorage.setItem("govsec_user", JSON.stringify(user));
+
+				if (userType === "admin" && user.role === "gov") {
+					toast.success("Welcome, Government Official!");
+					navigate("/admin");
+				} else if (userType === "citizen" && user.role === "citizen") {
+					toast.success("Welcome back!");
+					navigate("/citizendashboard");
+				} else {
+					sessionStorage.clear();
+					toast.error(`Invalid role for selected login type.`);
+				}
+			} catch (error) {
+				const msg = error.response?.data?.message || "Login failed.";
+				toast.error(msg);
+			} finally {
 				setIsLoading(false);
-				alert("Login successful!");
-				// Here you would typically redirect or handle successful login
-			}, 1500);
+			}
 		}
 	};
 
-	const styles = {
-		container: {
-			minHeight: "100vh",
-			background: "linear-gradient(135deg, #0f172a, #581c87, #0f172a)",
-			color: "white",
-			fontFamily: "system-ui, -apple-system, sans-serif",
-			position: "relative",
-			overflow: "hidden",
-		},
-		backgroundElements: {
-			position: "fixed",
-			inset: "0",
-			overflow: "hidden",
-			pointerEvents: "none",
-			zIndex: 0,
-		},
-		bgCircle1: {
-			position: "absolute",
-			top: "-100px",
-			right: "-100px",
-			width: "200px",
-			height: "200px",
-			background: "rgba(139, 92, 246, 0.1)",
-			borderRadius: "50%",
-			filter: "blur(60px)",
-			animation: "pulse 4s infinite",
-		},
-		bgCircle2: {
-			position: "absolute",
-			bottom: "-100px",
-			left: "-100px",
-			width: "200px",
-			height: "200px",
-			background: "rgba(59, 130, 246, 0.1)",
-			borderRadius: "50%",
-			filter: "blur(60px)",
-			animation: "pulse 4s infinite 1s",
-		},
-		header: {
-			position: "relative",
-			zIndex: 10,
-			padding: "20px 24px",
-			display: "flex",
-			alignItems: "center",
-			gap: "16px",
-		},
-		backButton: {
-			display: "flex",
-			alignItems: "center",
-			gap: "8px",
-			color: "#06b6d4",
-			textDecoration: "none",
-			fontSize: "14px",
-			fontWeight: "500",
-			transition: "color 0.3s",
-			cursor: "pointer",
-		},
-		logo: {
-			display: "flex",
-			alignItems: "center",
-			gap: "12px",
-			marginLeft: "auto",
-		},
-		logoIcon: {
-			width: "32px",
-			height: "32px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			borderRadius: "8px",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-		},
-		logoText: {
-			fontSize: "20px",
-			fontWeight: "bold",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-		},
-		main: {
-			position: "relative",
-			zIndex: 10,
-			display: "flex",
-			justifyContent: "center",
-			alignItems: "center",
-			padding: "20px 24px",
-			minHeight: "calc(100vh - 80px)",
-		},
-		formCard: {
-			background: "rgba(255, 255, 255, 0.05)",
-			backdropFilter: "blur(20px)",
-			borderRadius: "20px",
-			border: "1px solid rgba(255, 255, 255, 0.1)",
-			padding: "40px",
-			maxWidth: "450px",
-			width: "100%",
-			height: "fit-content",
-		},
-		title: {
-			fontSize: "32px",
-			fontWeight: "bold",
-			textAlign: "center",
-			marginBottom: "8px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			WebkitBackgroundClip: "text",
-			WebkitTextFillColor: "transparent",
-			backgroundClip: "text",
-		},
-		subtitle: {
-			color: "#d1d5db",
-			textAlign: "center",
-			marginBottom: "32px",
-			fontSize: "16px",
-		},
-		userTypeToggle: {
-			display: "flex",
-			marginBottom: "32px",
-			background: "rgba(255, 255, 255, 0.05)",
-			borderRadius: "12px",
-			padding: "4px",
-		},
-		userTypeButton: {
-			flex: 1,
-			padding: "12px 16px",
-			borderRadius: "8px",
-			border: "none",
-			background: "transparent",
-			color: "#d1d5db",
-			fontSize: "14px",
-			fontWeight: "500",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			display: "flex",
-			alignItems: "center",
-			justifyContent: "center",
-			gap: "8px",
-		},
-		userTypeButtonActive: {
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			color: "white",
-			transform: "scale(1.02)",
-		},
-		formGroup: {
-			marginBottom: "20px",
-		},
-		label: {
-			display: "block",
-			marginBottom: "8px",
-			fontSize: "14px",
-			fontWeight: "500",
-			color: "#e5e7eb",
-		},
-		inputWrapper: {
-			position: "relative",
-		},
-		input: {
-			width: "100%",
-			padding: "14px 16px",
-			paddingRight: "48px",
-			background: "rgba(255, 255, 255, 0.05)",
-			border: "1px solid rgba(255, 255, 255, 0.2)",
-			borderRadius: "8px",
-			color: "white",
-			fontSize: "14px",
-			outline: "none",
-			transition: "all 0.3s",
-			boxSizing: "border-box",
-		},
-		inputError: {
-			borderColor: "#ef4444",
-		},
-		inputIcon: {
-			position: "absolute",
-			right: "12px",
-			top: "50%",
-			transform: "translateY(-50%)",
-			color: "#9ca3af",
-		},
-		error: {
-			color: "#ef4444",
-			fontSize: "12px",
-			marginTop: "4px",
-		},
-		checkboxGroup: {
-			display: "flex",
-			alignItems: "center",
-			gap: "12px",
-			marginBottom: "24px",
-		},
-		checkbox: {
-			accentColor: "#06b6d4",
-		},
-		checkboxLabel: {
-			fontSize: "14px",
-			color: "#d1d5db",
-			cursor: "pointer",
-		},
-		forgotPassword: {
-			textAlign: "right",
-			marginBottom: "24px",
-		},
-		forgotPasswordLink: {
-			color: "#06b6d4",
-			textDecoration: "none",
-			fontSize: "14px",
-			fontWeight: "500",
-			transition: "color 0.3s",
-		},
-		submitButton: {
-			width: "100%",
-			padding: "16px",
-			background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-			border: "none",
-			borderRadius: "12px",
-			color: "white",
-			fontSize: "16px",
-			fontWeight: "600",
-			cursor: "pointer",
-			transition: "all 0.3s",
-			boxShadow: "0 10px 25px rgba(6, 182, 212, 0.3)",
-			position: "relative",
-			overflow: "hidden",
-		},
-		submitButtonLoading: {
-			opacity: 0.8,
-			cursor: "not-allowed",
-		},
-		spinner: {
-			display: "inline-block",
-			width: "16px",
-			height: "16px",
-			border: "2px solid transparent",
-			borderTop: "2px solid white",
-			borderRadius: "50%",
-			animation: "spin 1s linear infinite",
-			marginRight: "8px",
-		},
-		registerLink: {
-			textAlign: "center",
-			marginTop: "24px",
-			fontSize: "14px",
-			color: "#d1d5db",
-		},
-		link: {
-			color: "#06b6d4",
-			textDecoration: "none",
-			fontWeight: "500",
-		},
-		divider: {
-			display: "flex",
-			alignItems: "center",
-			margin: "24px 0",
-			gap: "16px",
-		},
-		dividerLine: {
-			flex: 1,
-			height: "1px",
-			background: "rgba(255, 255, 255, 0.2)",
-		},
-		dividerText: {
-			fontSize: "14px",
-			color: "#9ca3af",
-		},
-		demoCredentials: {
-			background: "rgba(6, 182, 212, 0.1)",
-			border: "1px solid rgba(6, 182, 212, 0.3)",
-			borderRadius: "8px",
-			padding: "12px",
-			marginBottom: "20px",
-		},
-		demoTitle: {
-			fontSize: "12px",
-			fontWeight: "600",
-			color: "#06b6d4",
-			marginBottom: "4px",
-		},
-		demoText: {
-			fontSize: "11px",
-			color: "#d1d5db",
-			lineHeight: 1.4,
-		},
-	};
-
 	return (
-		<div style={styles.container}>
-			<style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 0.4; transform: scale(1); }
-                    50% { opacity: 0.8; transform: scale(1.05); }
-                }
-                
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                
-                .back-button:hover { color: #0891b2 !important; }
-                .submit-button:hover:not(.loading) { 
-                    transform: translateY(-2px); 
-                    box-shadow: 0 15px 35px rgba(6, 182, 212, 0.4) !important; 
-                }
-                .input:focus { 
-                    border-color: #06b6d4 !important; 
-                    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1) !important; 
-                }
-                .link:hover { color: #0891b2 !important; }
-                .forgot-password-link:hover { color: #0891b2 !important; }
-                
-                @media (max-width: 640px) {
-                    .form-card { padding: 24px !important; }
-                    .title { font-size: 24px !important; }
-                }
-            `}</style>
-
-			{/* Background Elements */}
-			<div style={styles.backgroundElements}>
-				<div style={styles.bgCircle1}></div>
-				<div style={styles.bgCircle2}></div>
+		<div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020617] text-white selection:bg-[#0ed7b2]/30 selection:text-[#0ed7b2] font-sans">
+			{/* Background Effects */}
+			<div className="fixed inset-0 pointer-events-none">
+				<div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#0ed7b2]/5 rounded-full blur-[140px]" />
+				<div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#3b82f6]/5 rounded-full blur-[140px]" />
 			</div>
 
-			{/* Header */}
-			<header style={styles.header}>
-				<Link to="/home" style={styles.backButton} className="back-button">
-					<ArrowLeft size={16} />
-					Back to Home
-				</Link>
-				<div style={styles.logo}>
-					<div style={styles.logoIcon}>
-						<Shield size={20} color="white" />
+			<div className="w-full max-w-[480px] gov-card p-10 animate-pop-in relative z-10 flex flex-col group overflow-hidden">
+				<div className="absolute top-0 right-0 w-32 h-32 bg-[#0ed7b2]/5 rounded-bl-[100px] -z-1 group-hover:bg-[#0ed7b2]/10 transition-all duration-700" />
+				
+				<div className="text-center mb-10">
+					<div className="flex justify-center mb-6">
+						<div className="gov-logo scale-125 shadow-[0_0_30px_rgba(14,215,178,0.3)]">G</div>
 					</div>
-					<span style={styles.logoText}>GovSecAI</span>
+					<h1 className="text-3xl font-black tracking-tighter uppercase mb-2">Access Portal</h1>
+					<p className="text-[10px] font-black tracking-widest text-[#0ed7b2] uppercase opacity-80">Secure Identification Hub V4.2</p>
 				</div>
-			</header>
 
-			{/* Main Content */}
-			<main style={styles.main}>
-				<div style={styles.formCard} className="form-card">
-					<h1 style={styles.title}>Welcome Back</h1>
-					<p style={styles.subtitle}>
-						Sign in to access your GovSecAI dashboard
-					</p>
+				{/* User Type Selector */}
+				<div className="flex p-1 bg-white/5 rounded-2xl mb-10 border border-white/5">
+					<button
+						onClick={() => setUserType("citizen")}
+						className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 ${
+							userType === "citizen" ? "bg-[#0ed7b2] text-[#020617] font-black shadow-lg" : "text-slate-500 font-bold hover:text-white"
+						}`}
+					>
+						<User size={16} />
+						<span className="text-[10px] uppercase tracking-widest">Citizen</span>
+					</button>
+					<button
+						onClick={() => setUserType("admin")}
+						className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 ${
+							userType === "admin" ? "bg-[#3b82f6] text-white font-black shadow-lg" : "text-slate-500 font-bold hover:text-white"
+						}`}
+					>
+						<Building size={16} />
+						<span className="text-[10px] uppercase tracking-widest">Official</span>
+					</button>
+				</div>
 
-					{/* User Type Toggle */}
-					<div style={styles.userTypeToggle}>
-						<button
-							style={{
-								...styles.userTypeButton,
-								...(userType === "citizen" ? styles.userTypeButtonActive : {}),
-							}}
-							onClick={() => setUserType("citizen")}
-						>
-							<User size={16} />
-							Citizen
-						</button>
-						<button
-							style={{
-								...styles.userTypeButton,
-								...(userType === "admin" ? styles.userTypeButtonActive : {}),
-							}}
-							onClick={() => setUserType("admin")}
-						>
-							<Building size={16} />
-							Government Official
-						</button>
-					</div>
-
-					{/* Demo Credentials */}
-					<div style={styles.demoCredentials}>
-						<div style={styles.demoTitle}>Demo Credentials</div>
-						<div style={styles.demoText}>
-							<strong>Citizen:</strong> citizen@demo.com | password: demo123
-							<br />
-							<strong>Admin:</strong> admin@gov.in | password: admin123
-						</div>
-					</div>
-
-					<div>
-						{/* Email */}
-						<div style={styles.formGroup}>
-							<label style={styles.label}>Email Address</label>
-							<div style={styles.inputWrapper}>
-								<input
-									type="email"
-									name="email"
-									value={formData.email}
-									onChange={handleInputChange}
-									style={{
-										...styles.input,
-										...(errors.email ? styles.inputError : {}),
-									}}
-									className="input"
-									placeholder="Enter your email address"
-								/>
-								<Mail size={16} style={styles.inputIcon} />
-							</div>
-							{errors.email && <div style={styles.error}>{errors.email}</div>}
-						</div>
-
-						{/* Password */}
-						<div style={styles.formGroup}>
-							<label style={styles.label}>Password</label>
-							<div style={styles.inputWrapper}>
-								<input
-									type={showPassword ? "text" : "password"}
-									name="password"
-									value={formData.password}
-									onChange={handleInputChange}
-									style={{
-										...styles.input,
-										...(errors.password ? styles.inputError : {}),
-									}}
-									className="input"
-									placeholder="Enter your password"
-								/>
-								<button
-									type="button"
-									onClick={() => setShowPassword(!showPassword)}
-									style={{
-										...styles.inputIcon,
-										background: "none",
-										border: "none",
-										cursor: "pointer",
-										padding: 0,
-									}}
-								>
-									{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-								</button>
-							</div>
-							{errors.password && (
-								<div style={styles.error}>{errors.password}</div>
-							)}
-						</div>
-
-						{/* Remember Me and Forgot Password */}
-						<div style={styles.checkboxGroup}>
+				<div className="space-y-8">
+					<div className="space-y-2">
+						<label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Identity Vector (Email)</label>
+						<div className="relative">
+							<Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
 							<input
-								type="checkbox"
-								id="rememberMe"
-								name="rememberMe"
-								checked={formData.rememberMe}
+								type="email"
+								name="email"
+								value={formData.email}
 								onChange={handleInputChange}
-								style={styles.checkbox}
+								className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-white focus:outline-none focus:border-[#0ed7b2] transition-all"
+								placeholder="Enter registered email"
 							/>
-							<label htmlFor="rememberMe" style={styles.checkboxLabel}>
-								Remember me
-							</label>
 						</div>
+						{errors.email && <p className="text-[#ef4444] text-[10px] font-black uppercase mt-2 ml-1">{errors.email}</p>}
+					</div>
 
-						<div style={styles.forgotPassword}>
-							<Link
-								to="/forgot-password"
-								style={styles.forgotPasswordLink}
-								className="forgot-password-link"
-							>
-								Forgot password?
-							</Link>
+					<div className="space-y-2">
+						<div className="flex justify-between mb-1 ml-1">
+							<label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Security Key</label>
+							<Link to="/forgot-password text-[10px] font-black text-[#0ed7b2] uppercase hover:underline">Recovery</Link>
 						</div>
-
-						{/* Submit Button */}
-						<button
-							type="button"
-							onClick={handleSubmit}
-							disabled={isLoading}
-							style={{
-								...styles.submitButton,
-								...(isLoading ? styles.submitButtonLoading : {}),
-							}}
-							className={`submit-button ${isLoading ? "loading" : ""}`}
-						>
-							{isLoading && <div style={styles.spinner}></div>}
-							{isLoading ? "Signing In..." : "Sign In"}
-						</button>
-
-						{/* Divider */}
-						<div style={styles.divider}>
-							<div style={styles.dividerLine}></div>
-							<span style={styles.dividerText}>or</span>
-							<div style={styles.dividerLine}></div>
+						<div className="relative">
+							<Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
+							<input
+								type={showPassword ? "text" : "password"}
+								name="password"
+								value={formData.password}
+								onChange={handleInputChange}
+								className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-sm font-bold text-white focus:outline-none focus:border-[#0ed7b2] transition-all"
+								placeholder="Enter access code"
+							/>
+							<button onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
+								{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+							</button>
 						</div>
+						{errors.password && <p className="text-[#ef4444] text-[10px] font-black uppercase mt-2 ml-1">{errors.password}</p>}
+					</div>
 
-						{/* Register Link */}
-						<div style={styles.registerLink}>
-							Don't have an account?{" "}
-							<Link to="/register" style={styles.link} className="link">
-								Create account
-							</Link>
-						</div>
+					<button
+						onClick={handleSubmit}
+						disabled={isLoading}
+						className="w-full bg-[#0ed7b2] text-[#020617] font-black py-5 rounded-2xl transition-all shadow-[0_0_30px_rgba(14,215,178,0.3)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em]"
+					>
+						{isLoading ? (
+							<div className="w-5 h-5 border-2 border-[#020617]/30 border-t-[#020617] rounded-full animate-spin" />
+						) : (
+							<>
+								<Shield size={18} />
+								Establish Link
+							</>
+						)}
+					</button>
+
+					<p className="text-center text-slate-500 text-[10px] font-black uppercase tracking-widest mt-8">
+						New Node Initialization?{" "}
+						<Link to="/register" className="text-[#0ed7b2] hover:underline">Registration</Link>
+					</p>
+				</div>
+
+				<div className="mt-12 pt-8 border-t border-white/5 flex items-center justify-between">
+					<Link to="/" className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest">
+						<ArrowLeft size={16} />
+						Exit Terminal
+					</Link>
+					<div className="flex items-center gap-2">
+						<div className="w-1.5 h-1.5 rounded-full bg-[#0ed7b2] animate-pulse" />
+						<span className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Encrypted Session</span>
 					</div>
 				</div>
-			</main>
+			</div>
 		</div>
 	);
 };
