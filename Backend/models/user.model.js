@@ -35,6 +35,10 @@ const userSchema = new mongoose.Schema({
 		type: String,
 		required: true,
 	},
+    address: {
+        type: String,
+        default: "Not provided"
+    },
 	role: {
 		type: String,
 		enum: ["citizen", "gov"],

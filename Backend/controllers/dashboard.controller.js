@@ -5,9 +5,9 @@ class DashboardController {
 	// --- STATS ---
 	static getStats(req, res) {
 		try {
-			const roadCount = db.prepare("SELECT COUNT(*) as c FROM road_complaints").get().c;
-			const healthCount = db.prepare("SELECT COUNT(*) as c FROM health_complaints").get().c;
-			const fraudCount = db.prepare("SELECT COUNT(*) as c FROM banking_fraud").get().c;
+			const roadCount = db.prepare("SELECT COUNT(*) as c FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
+			const healthCount = db.prepare("SELECT COUNT(*) as c FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
+			const fraudCount = db.prepare("SELECT COUNT(*) as c FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
 
 			const counts = {
 				road: roadCount,
@@ -31,7 +31,7 @@ class DashboardController {
 			const alerts = [];
 
 			const latestRoads = db
-				.prepare("SELECT * FROM road_complaints ORDER BY id DESC LIMIT 10")
+				.prepare("SELECT * FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
 				.all();
 			latestRoads.forEach((r) => {
 				alerts.push({
@@ -40,13 +40,14 @@ class DashboardController {
 					sort_date: parseDateForSort(r.date_reported),
 					description: r.description,
 					city: r.city,
-					id: r.id,
+					area: r.area,
+					id: r.complaint_id,
 					evidence_url: r.evidence_url || null,
 				});
 			});
 
 			const latestHealth = db
-				.prepare("SELECT * FROM health_complaints ORDER BY id DESC LIMIT 10")
+				.prepare("SELECT * FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
 				.all();
 			latestHealth.forEach((h) => {
 				alerts.push({
@@ -55,13 +56,14 @@ class DashboardController {
 					sort_date: parseDateForSort(h.date_reported),
 					description: h.complaint_text,
 					city: h.city,
-					id: h.id,
+					area: h.area,
+					id: h.complaint_id,
 					evidence_url: h.evidence_url || null,
 				});
 			});
 
 			const latestFraud = db
-				.prepare("SELECT * FROM banking_fraud ORDER BY id DESC LIMIT 10")
+				.prepare("SELECT * FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
 				.all();
 			latestFraud.forEach((f) => {
 				alerts.push({
@@ -70,7 +72,8 @@ class DashboardController {
 					sort_date: f.timestamp || "",
 					description: f.merchant_category,
 					city: f.location_city,
-					id: f.id,
+					area: f.area,
+					id: f.transaction_id,
 				});
 			});
 
@@ -94,11 +97,42 @@ class DashboardController {
 		}
 	}
 
+	// --- LOCATIONS ---
+	static getLocations(req, res) {
+		try {
+			// Get unique cities and areas from all tables
+			const roadRows = db.prepare("SELECT DISTINCT city, area FROM road_complaints WHERE city IS NOT NULL AND area IS NOT NULL").all();
+			const healthRows = db.prepare("SELECT DISTINCT city, area FROM health_complaints WHERE city IS NOT NULL AND area IS NOT NULL").all();
+			const fraudRows = db.prepare("SELECT DISTINCT location_city as city, area FROM banking_fraud WHERE location_city IS NOT NULL AND area IS NOT NULL").all();
+
+			const allObj = {};
+			
+			[...roadRows, ...healthRows, ...fraudRows].forEach(row => {
+				const cName = row.city.trim();
+				const aName = row.area.trim();
+				if (!cName || !aName) return;
+				
+				if (!allObj[cName]) allObj[cName] = new Set();
+				allObj[cName].add(aName);
+			});
+
+			const locations = {};
+			Object.keys(allObj).forEach(c => {
+				locations[c] = Array.from(allObj[c]).sort();
+			});
+
+			return res.json(locations);
+		} catch (error) {
+			console.error("Locations error:", error);
+			return response(res, 500, null, "Error fetching locations");
+		}
+	}
+
 	// --- ROAD ---
 	static getRoadSummary(req, res) {
 		try {
 			const rows = db
-				.prepare("SELECT city, COUNT(*) as count FROM road_complaints GROUP BY city")
+				.prepare("SELECT city, COUNT(*) as count FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY city")
 				.all();
 			const result = {};
 			rows.forEach((r) => (result[r.city] = r.count));
@@ -113,7 +147,7 @@ class DashboardController {
 			const { city } = req.params;
 			const rows = db
 				.prepare(
-					"SELECT area, COUNT(*) as count FROM road_complaints WHERE LOWER(city) = LOWER(?) GROUP BY area LIMIT 15"
+					"SELECT area, COUNT(*) as count FROM road_complaints WHERE LOWER(city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
 				)
 				.all(city);
 			const result = {};
@@ -128,10 +162,29 @@ class DashboardController {
 		try {
 			const { city, area } = req.params;
 			const rows = db
-				.prepare("SELECT * FROM road_complaints WHERE city = ? AND area = ?")
+				.prepare("SELECT * FROM road_complaints WHERE city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'")
 				.all(city, area);
 			return res.json(rows);
 		} catch (e) {
+			return response(res, 500, null, "Error");
+		}
+	}
+
+	static getRecentModuleComplaints(req, res) {
+		try {
+			const { module } = req.params;
+			const tableMap = {
+				road: { table: "road_complaints", idCol: "complaint_id", dateCol: "date_reported" },
+				health: { table: "health_complaints", idCol: "complaint_id", dateCol: "date_reported" },
+				fraud: { table: "banking_fraud", idCol: "transaction_id", dateCol: "timestamp" }
+			};
+			const cfg = tableMap[module];
+			if (!cfg) return response(res, 400, null, "Invalid module");
+
+			const rows = db.prepare(`SELECT * FROM ${cfg.table} WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 50`).all();
+			return res.json(rows);
+		} catch (e) {
+			console.error("Recent complaints error:", e);
 			return response(res, 500, null, "Error");
 		}
 	}
@@ -140,7 +193,7 @@ class DashboardController {
 	static getHealthSummary(req, res) {
 		try {
 			const rows = db
-				.prepare("SELECT city, COUNT(*) as count FROM health_complaints GROUP BY city")
+				.prepare("SELECT city, COUNT(*) as count FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY city")
 				.all();
 			const result = {};
 			rows.forEach((r) => (result[r.city] = r.count));
@@ -155,7 +208,7 @@ class DashboardController {
 			const { city } = req.params;
 			const rows = db
 				.prepare(
-					"SELECT area, COUNT(*) as count FROM health_complaints WHERE LOWER(city) = LOWER(?) GROUP BY area LIMIT 15"
+					"SELECT area, COUNT(*) as count FROM health_complaints WHERE LOWER(city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
 				)
 				.all(city);
 			const result = {};
@@ -170,7 +223,7 @@ class DashboardController {
 		try {
 			const { city, area } = req.params;
 			const rows = db
-				.prepare("SELECT * FROM health_complaints WHERE city = ? AND area = ?")
+				.prepare("SELECT * FROM health_complaints WHERE city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'")
 				.all(city, area);
 			return res.json(rows);
 		} catch (e) {
@@ -183,7 +236,7 @@ class DashboardController {
 		try {
 			const rows = db
 				.prepare(
-					"SELECT location_city, COUNT(*) as count FROM banking_fraud GROUP BY location_city"
+					"SELECT location_city, COUNT(*) as count FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY location_city"
 				)
 				.all();
 			const result = {};
@@ -199,7 +252,7 @@ class DashboardController {
 			const { city } = req.params;
 			const rows = db
 				.prepare(
-					"SELECT area, COUNT(*) as count FROM banking_fraud WHERE LOWER(location_city) = LOWER(?) GROUP BY area LIMIT 15"
+					"SELECT area, COUNT(*) as count FROM banking_fraud WHERE LOWER(location_city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
 				)
 				.all(city);
 			const result = {};
@@ -215,7 +268,7 @@ class DashboardController {
 			const { city, area } = req.params;
 			const rows = db
 				.prepare(
-					"SELECT * FROM banking_fraud WHERE location_city = ? AND area = ?"
+					"SELECT * FROM banking_fraud WHERE location_city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'"
 				)
 				.all(city, area);
 			return res.json(rows);
@@ -290,8 +343,6 @@ class DashboardController {
 		}
 	}
 
-	}
-
 	// --- TRACK COMPLAINT ---
 	static trackComplaint(req, res) {
 		try {
@@ -355,7 +406,18 @@ class DashboardController {
 				return dateB.localeCompare(dateA);
 			});
 
-			return res.json(all);
+			// Map to frontend expectations
+			const formatted = all.map(c => ({
+				id: c.complaint_id || c.transaction_id,
+				type: c.source === "Road" ? "road" : c.source === "Health" ? "health" : "banking",
+				title: c.description || c.complaint_text || c.merchant_category || "No description",
+				location: `${c.area || ''}, ${c.city || c.location_city || ''}`.replace(/^, | , $/g, ''),
+				priority: c.priority || c.severity || "Medium",
+				status: c.status || "Pending",
+				date: c.date_reported || c.timestamp
+			}));
+
+			return response(res, 200, { complaints: formatted }, "Complaints fetched");
 		} catch (e) {
 			console.error("Error fetching citizen complaints:", e);
 			return response(res, 500, null, "Error fetching complaints");
@@ -378,12 +440,12 @@ class DashboardController {
 				).run(id, date, city, area, description, "Pending", "Medium", "Pending", citizen_email, evidence_url || null);
 			} else if (module === "health") {
 				db.prepare(
-					"INSERT INTO health_complaints (complaint_id, date_reported, city, area, complaint_text, category, severity, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-				).run(id, date, city, area, description, "General", "Medium", "Pending", citizen_email, evidence_url || null);
-			} else if (module === "fraud") {
+					"INSERT INTO health_complaints (complaint_id, date_reported, city, area, complaint_text, category, severity, status, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+				).run(id, date, city, area, description, "General", "Medium", "Pending", "Pending", citizen_email, evidence_url || null);
+			} else if (module === "fraud" || module === "banking") {
 				db.prepare(
-					"INSERT INTO banking_fraud (transaction_id, timestamp, location_city, area, merchant_category, risk_score, is_fraud, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-				).run(id, new Date().toISOString(), city, area, description, 50, "Yes", "Pending", citizen_email, evidence_url || null);
+					"INSERT INTO banking_fraud (transaction_id, timestamp, location_city, area, merchant_category, risk_score, is_fraud, status, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+				).run(id, new Date().toISOString(), city, area, description, 50, "Yes", "Pending", "Pending", citizen_email, evidence_url || null);
 			} else {
 				return response(res, 400, null, "Invalid module");
 			}
@@ -392,6 +454,29 @@ class DashboardController {
 		} catch (e) {
 			console.error("Error filing complaint:", e);
 			return response(res, 500, null, "Error filing complaint");
+		}
+	}
+
+	static resolveComplaint(req, res) {
+		try {
+			const { id } = req.params;
+
+			// Try road
+			let result = db.prepare("UPDATE road_complaints SET status = 'Resolved' WHERE complaint_id = ?").run(id);
+			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+
+			// Try health
+			result = db.prepare("UPDATE health_complaints SET status = 'Resolved' WHERE complaint_id = ?").run(id);
+			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+
+			// Try fraud
+			result = db.prepare("UPDATE banking_fraud SET status = 'Resolved' WHERE transaction_id = ?").run(id);
+			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+
+			return response(res, 404, null, "Complaint not found");
+		} catch (e) {
+			console.error("Error resolving complaint:", e);
+			return response(res, 500, null, "Error resolving complaint");
 		}
 	}
 

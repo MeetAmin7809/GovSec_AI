@@ -7,6 +7,7 @@ router.get("/ping", DashboardController.ping);
 
 // Stats (home overview)
 router.get("/stats", DashboardController.getStats);
+router.get("/locations", DashboardController.getLocations);
 
 // Road
 router.get("/road/summary", DashboardController.getRoadSummary);
@@ -24,6 +25,7 @@ router.get("/fraud/areas/:city", DashboardController.getFraudAreas);
 router.get("/fraud/list/:city/:area", DashboardController.getFraudList);
 
 // Area status (generic for all modules)
+router.get("/:module/recent", DashboardController.getRecentModuleComplaints);
 router.get("/:module/area-status/:city/:area", DashboardController.getAreaStatus);
 router.post("/:module/area-status/:city/:area", DashboardController.updateAreaStatus);
 router.post("/:module/area-resolve/:city/:area", DashboardController.resolveArea);
@@ -34,5 +36,6 @@ router.get("/track/:complaint_id", DashboardController.trackComplaint);
 // Citizen specific
 router.get("/citizen/:email", DashboardController.getCitizenComplaints);
 router.post("/complaint", DashboardController.fileComplaint);
+router.post("/complaint/:id/resolve", DashboardController.resolveComplaint);
 
 module.exports = router;

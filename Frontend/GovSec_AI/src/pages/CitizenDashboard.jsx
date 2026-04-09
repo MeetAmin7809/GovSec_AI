@@ -1,55 +1,38 @@
-import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "react-toastify";
 import {
-	BarChart,
-	Bar,
-	LineChart,
-	Line,
-	PieChart,
-	Pie,
-	Cell,
-	XAxis,
-	YAxis,
-	CartesianGrid,
-	Tooltip,
-	Legend,
-	ResponsiveContainer,
-} from "recharts";
-import {
-	AlertCircle,
-	CheckCircle,
-	TrendingUp,
-	FileText,
-	MessageSquare,
-	Shield,
-	Bell,
-	User,
-	Search,
-	Filter,
-	Download,
-	Home,
-	ArrowRight,
-	Plus,
-	Book,
-	Users,
-	Award,
-    Settings,
-    LogOut,
-    Menu,
-    X,
-    LayoutDashboard,
-    FileWarning,
     Activity,
-    Smartphone,
+    AlertCircle,
+    Construction,
     CreditCard,
+    FileWarning,
+    LayoutDashboard,
+    LogOut,
+    Plus,
+    Search,
+    Settings,
+    Shield,
     Stethoscope,
-    Construction
+    User,
+    X
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "react-toastify";
+import ChatWidget from "../components/ChatWidget";
+import {
+    Bar,
+    BarChart,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis
+} from "recharts";
 
 const API_BASE = "http://localhost:8001/api/v1";
 
 const CitizenDashboard = () => {
+    const navigate = useNavigate();
     // State
 	const [activeTab, setActiveTab] = useState("overview");
 	const [searchQuery, setSearchQuery] = useState("");
@@ -59,10 +42,14 @@ const CitizenDashboard = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [complaintType, setComplaintType] = useState("road"); // road, health, banking
+    const [locations, setLocations] = useState({});
+    const [areasForCity, setAreasForCity] = useState([]);
+    const [theme, setTheme] = useState(localStorage.getItem("govsec_theme") || "dark");
     const [newComplaint, setNewComplaint] = useState({
         title: "",
         description: "",
-        location: "",
+        city: "",
+        area: "",
         priority: "Medium"
     });
 
@@ -73,7 +60,17 @@ const CitizenDashboard = () => {
             setUserData(user);
             fetchComplaints(user.email);
         }
+        fetchLocations();
     }, []);
+
+    const fetchLocations = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/dashboard/locations`);
+            setLocations(res.data);
+        } catch (error) {
+            console.error("Error loading locations", error);
+        }
+    };
 
     const fetchComplaints = async (email) => {
         setIsLoading(true);
@@ -91,17 +88,22 @@ const CitizenDashboard = () => {
         e.preventDefault();
         try {
             await axios.post(`${API_BASE}/dashboard/complaint`, {
-                type: complaintType,
-                email: userData.email,
+                module: complaintType, // backend expects 'module'
+                citizen_email: userData?.email, // backend expects 'citizen_email'
                 ...newComplaint
             });
             toast.success("Complaint filed successfully!");
             setShowComplaintModal(false);
-            setNewComplaint({ title: "", description: "", location: "", priority: "Medium" });
+            setNewComplaint({ title: "", description: "", city: "", area: "", priority: "Medium" });
             fetchComplaints(userData.email);
         } catch (error) {
             toast.error("Error filing complaint");
         }
+    };
+
+    const toggleTheme = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem("govsec_theme", newTheme);
     };
 
     const logout = () => {
@@ -135,22 +137,28 @@ const CitizenDashboard = () => {
     if (!userData) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-[#0ed7b2] font-black tracking-widest">INITIALIZING SECURE SESSION...</div>;
 
 	return (
-		<div className="min-h-screen bg-[#020617] text-white flex overflow-hidden">
+		<div className={`min-h-screen flex overflow-hidden transition-colors duration-300 ${theme === "light" ? "light-theme" : ""} bg-[var(--bg-primary)] text-[var(--text-primary)]`}>
             {/* Sidebar */}
-            <aside className={`${isSidebarOpen ? "w-[280px]" : "w-[90px]"} bg-[#020617] border-r border-white/5 flex flex-col p-6 transition-all duration-500 relative z-30 shadow-2xl`}>
+            <aside className={`${isSidebarOpen ? "w-[280px]" : "w-[90px]"} bg-[var(--bg-sidebar)] border-r border-white/5 flex flex-col p-6 transition-all duration-500 relative z-30 shadow-2xl`}>
                 <div className="flex items-center gap-4 mb-12 px-2">
                     <div className="gov-logo scale-110">G</div>
-                    {isSidebarOpen && <span className="text-xl font-extrabold tracking-tighter uppercase tracking-widest">Citizen Node</span>}
+                    {isSidebarOpen && <span className="text-xl font-extrabold tracking-tighter uppercase tracking-widest text-[var(--text-primary)]">Citizen Node</span>}
                 </div>
 
                 <div className="space-y-2 flex-1">
                     <SidebarItem id="overview" icon={LayoutDashboard} label="Strategic View" />
                     <SidebarItem id="complaints" icon={FileWarning} label="My Reports" />
-                    <SidebarItem id="track" icon={Activity} label="System Status" />
+                    <button
+                        onClick={() => navigate("/profile")}
+                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)] font-bold group transition-all duration-300"
+                    >
+                        <User size={20} className="group-hover:scale-110 transition-transform" />
+                        {isSidebarOpen && <span className="text-sm tracking-tight">My Profile</span>}
+                    </button>
                 </div>
 
                 <div className="pt-6 border-t border-white/5 space-y-2">
-                    <SidebarItem id="settings" icon={Settings} label="Identity Config" />
+                    <SidebarItem id="settings" icon={Settings} label="Setting" />
                     <button onClick={logout} className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-[#ef4444] hover:bg-red-500/5 transition-all font-bold group">
                         <LogOut size={20} className="group-hover:scale-110 transition-transform" />
                         {isSidebarOpen && <span className="text-sm uppercase tracking-widest font-black">Terminate</span>}
@@ -159,21 +167,22 @@ const CitizenDashboard = () => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto relative bg-[#020617]">
+            <main className="flex-1 overflow-y-auto relative bg-[var(--bg-primary)]">
                 {/* Background effects */}
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#0ed7b2]/5 rounded-full blur-[120px] pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[var(--primary-color)]/5 rounded-full blur-[120px] pointer-events-none" />
                 
                 {/* Header */}
-                <header className="sticky top-0 z-20 bg-[#020617]/80 backdrop-blur-xl border-b border-white/5 px-8 h-24 flex items-center justify-between">
+                <header className="sticky top-0 z-20 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-white/5 px-8 h-24 flex items-center justify-between">
                     <div>
-                        <h2 className="gov-h2 text-2xl mb-1 uppercase tracking-widest font-black">
-                            {activeTab === "overview" ? "Strategic Intelligence" : activeTab === "complaints" ? "Citizen Complaints" : "Identity Configuration"}
+                        <h2 className="gov-h2 text-2xl mb-1 uppercase tracking-widest font-black" style={{backgroundImage: 'none', WebkitBackgroundClip: 'initial', WebkitTextFillColor: 'var(--text-primary)'}}>
+                            {activeTab === "overview" ? "Strategic Intelligence" : activeTab === "complaints" ? "Citizen Complaints" : "Strategic Configuration"}
                         </h2>
                         <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-[#0ed7b2] animate-pulse" />
-                            <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Secure Link Established: {userData.email}</span>
+                            <div className="w-2 h-2 rounded-full bg-[var(--primary-color)] animate-pulse" />
+                            <span className="text-[10px] font-black tracking-widest text-[var(--text-secondary)] uppercase">Secure Link Established: {userData.email}</span>
                         </div>
                     </div>
+
 
                     <div className="flex items-center gap-6">
                         <button 
@@ -307,7 +316,7 @@ const CitizenDashboard = () => {
                                                 </td>
                                                 <td className="px-8 py-5">
                                                     <span className={`text-[10px] font-black tracking-[0.2em] px-3 py-1 rounded-full border ${getStatusStyle(complaint.status)}`}>
-                                                        {complaint.status?.toUpperCase() || "PENDING_REVIEW"}
+                                                        {complaint.status?.toUpperCase() || "PENDING"}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -325,6 +334,69 @@ const CitizenDashboard = () => {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "settings" && (
+                        <div className="space-y-8 animate-pop-in">
+                            <div className="gov-card border-[var(--border-primary)] bg-[var(--bg-glass)]">
+                                <h3 className="text-sm font-black tracking-widest text-[var(--text-secondary)] uppercase mb-6">Visual Interface Preferences</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <button 
+                                        onClick={() => toggleTheme("dark")}
+                                        className={`p-6 rounded-2xl border transition-all flex flex-col gap-4 ${
+                                            theme === "dark" 
+                                            ? "bg-[#0ed7b2]/10 border-[#0ed7b2] shadow-[0_0_20px_rgba(14,215,178,0.1)]" 
+                                            : "bg-white/5 border-white/10 hover:border-white/20"
+                                        }`}
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-[#020617] border border-white/10 flex items-center justify-center">
+                                            <div className="w-6 h-6 rounded-full bg-[#0ed7b2]" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className={`font-black uppercase tracking-widest text-sm ${theme === "dark" ? "text-[#0ed7b2]" : "text-white"}`}>Midnight Protocol</div>
+                                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Optimized for low-light tactical operations</div>
+                                        </div>
+                                    </button>
+
+                                    <button 
+                                        onClick={() => toggleTheme("light")}
+                                        className={`p-6 rounded-2xl border transition-all flex flex-col gap-4 ${
+                                            theme === "light" 
+                                            ? "bg-[#0ed7b2]/10 border-[#0ed7b2] shadow-[0_0_20px_rgba(14,215,178,0.1)]" 
+                                            : "bg-white/5 border-white/10 hover:border-white/20"
+                                        }`}
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
+                                            <div className="w-6 h-6 rounded-full bg-[#0ed7b2]" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className={`font-black uppercase tracking-widest text-sm ${theme === "light" ? "text-[#0ed7b2]" : "text-slate-900"}`}>Lumina Interface</div>
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">High-contrast administrative clarity</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="gov-card border-[var(--border-primary)] bg-[var(--bg-glass)]">
+                                <h3 className="text-sm font-black tracking-widest text-[var(--text-secondary)] uppercase mb-6">Security & Resilience</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2 rounded-lg bg-[#0ed7b2]/10 text-[#0ed7b2]">
+                                                <Shield size={20} />
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-primary)]">Enhanced Encryption</div>
+                                                <div className="text-[10px] font-bold text-slate-500 uppercase">AES-256 standard active</div>
+                                            </div>
+                                        </div>
+                                        <div className="w-10 h-6 bg-emerald-500/20 rounded-full p-1 border border-emerald-500/30">
+                                             <div className="w-4 h-4 bg-emerald-500 rounded-full" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -386,16 +458,40 @@ const CitizenDashboard = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block mb-2 ml-1">Node Location</label>
-                                        <input 
-                                            type="text" 
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:border-[#0ed7b2] transition-colors"
-                                            placeholder="Area/Postal Node"
-                                            value={newComplaint.location}
-                                            onChange={(e) => setNewComplaint({...newComplaint, location: e.target.value})}
+                                        <label className="block mb-2 ml-1">City</label>
+                                        <select 
+                                            className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:border-[#0ed7b2] transition-colors appearance-none"
+                                            value={newComplaint.city}
+                                            onChange={(e) => {
+                                                const city = e.target.value;
+                                                setNewComplaint({...newComplaint, city, area: ""});
+                                                setAreasForCity(locations[city] || []);
+                                            }}
                                             required
-                                        />
+                                        >
+                                            <option value="" disabled>Select City</option>
+                                            {Object.keys(locations).map(city => (
+                                                <option key={city} value={city}>{city}</option>
+                                            ))}
+                                        </select>
                                     </div>
+                                    <div>
+                                        <label className="block mb-2 ml-1">Area / Landmark</label>
+                                        <select 
+                                            className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white focus:outline-none focus:border-[#0ed7b2] transition-colors appearance-none"
+                                            value={newComplaint.area}
+                                            onChange={(e) => setNewComplaint({...newComplaint, area: e.target.value})}
+                                            required
+                                            disabled={!newComplaint.city}
+                                        >
+                                            <option value="" disabled>Select Area</option>
+                                            {areasForCity.map(area => (
+                                                <option key={area} value={area}>{area}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1">
                                     <div>
                                         <label className="block mb-2 ml-1">Priority Vector</label>
                                         <select 
@@ -421,6 +517,7 @@ const CitizenDashboard = () => {
                     </div>
                 </div>
             )}
+            <ChatWidget />
 		</div>
 	);
 };

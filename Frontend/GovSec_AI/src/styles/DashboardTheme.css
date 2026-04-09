@@ -335,7 +335,56 @@ body {
 .gov-alert-item:hover { 
     background: rgba(255,255,255,0.03); 
     border-color: rgba(255,255,255,0.1); 
-    transform: scale(1.02); 
+    transform: translateY(-2px); 
+}
+
+.gov-alert-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.gov-btn-small {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gov-btn-small:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+}
+
+.gov-btn-small.primary {
+    background: rgba(14,215,178,0.1);
+    border-color: rgba(14,215,178,0.2);
+    color: var(--primary);
+}
+
+.gov-btn-small.primary:hover {
+    background: rgba(14,215,178,0.2);
+    border-color: var(--primary);
+}
+
+.gov-btn-small.resolve {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.gov-btn-small.resolve:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--danger);
 }
 
 .gov-tag { 

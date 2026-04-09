@@ -54,6 +54,7 @@ const GovDashboard = () => {
 	const [modal, setModal] = useState(null);
 	const [modalComplaints, setModalComplaints] = useState([]);
 	const [modalStatus, setModalStatus] = useState("Pending");
+	const [detailModal, setDetailModal] = useState(null);
 
 	// Lightbox
 	const [lightboxImg, setLightboxImg] = useState(null);
@@ -248,8 +249,33 @@ const GovDashboard = () => {
 			const d = await r.json();
 			alert(`Removed ${d.removed_count} complaints.`);
 			setModal(null);
+			loadHomeData();
 		} catch {
 			alert("Error resolving");
+		}
+	};
+
+	const resolveIndividual = async (id) => {
+		if (!window.confirm(`Mark report ${id} as resolved?`)) return;
+		try {
+			const r = await fetch(
+				`http://localhost:8001/api/v1/dashboard/complaint/${encodeURIComponent(id)}/resolve`,
+				{ method: "POST" }
+			);
+			if (r.ok) {
+				alert("Resolved successfully.");
+				setDetailModal(null);
+				loadHomeData();
+				// Also refresh active module data if needed
+				if (activeModule === "road") loadRoadData();
+				if (activeModule === "health") loadHealthData();
+				if (activeModule === "fraud") loadFraudData();
+			} else {
+				alert("Failed to resolve");
+			}
+		} catch (e) {
+			console.error(e);
+			alert("Error connecting to server");
 		}
 	};
 
@@ -584,6 +610,20 @@ const GovDashboard = () => {
 												<div className="gov-muted" style={{ fontSize: "0.75rem", marginTop: 8, opacity: 0.8 }}>
 													{a.city}
 												</div>
+												<div className="gov-alert-actions">
+													<button 
+														className="gov-btn-small primary"
+														onClick={() => setDetailModal(a)}
+													>
+														View Report
+													</button>
+													<button 
+														className="gov-btn-small resolve"
+														onClick={() => resolveIndividual(a.id)}
+													>
+														Mark Resolved
+													</button>
+												</div>
 											</div>
 										))}
 									</div>
@@ -808,8 +848,63 @@ const GovDashboard = () => {
 						</div>
 
 						<div className="gov-modal-actions">
-							<button className="gov-btn gov-btn-danger" onClick={resolveAll}>Resolve All</button>
-							<button className="gov-btn gov-btn-save" onClick={saveModalStatus}>Save</button>
+							<button className="gov-btn gov-btn-danger" onClick={resolveAll}>
+								Resolve All
+							</button>
+							<button className="gov-btn gov-btn-save" onClick={saveModalStatus}>
+								Save Changes
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Individual Complaint Detail Modal */}
+			{detailModal && (
+				<div className="gov-modal-overlay" onClick={(e) => e.target === e.currentTarget && setDetailModal(null)}>
+					<div className="gov-modal" style={{ maxWidth: 500 }}>
+						<div className="gov-modal-header">
+							<h3 style={{ margin: 0 }}>Detailed Report</h3>
+							<button className="gov-modal-close" onClick={() => setDetailModal(null)}>×</button>
+						</div>
+						
+						<div style={{ marginBottom: 20 }}>
+							<div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{detailModal.description}</div>
+							<div className="gov-pill" style={{ background: "rgba(255,255,255,0.05)", marginRight: 8 }}>{detailModal.id}</div>
+							<span className={`gov-tag ${detailModal.source}`}>{detailModal.source}</span>
+						</div>
+
+						<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 15, marginBottom: 25 }}>
+							<div>
+								<div className="gov-muted" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>Location</div>
+								<div style={{ fontWeight: 700 }}>{detailModal.area ? `${detailModal.area}, ` : ""}{detailModal.city}</div>
+							</div>
+							<div>
+								<div className="gov-muted" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>Date Reported</div>
+								<div style={{ fontWeight: 700 }}>{detailModal.date}</div>
+							</div>
+						</div>
+
+						{detailModal.evidence_url && (
+							<div style={{ marginBottom: 20 }}>
+								<div className="gov-muted" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Evidence Attachment</div>
+								<img 
+									src={`http://localhost:8001${detailModal.evidence_url}`} 
+									alt="Evidence" 
+									style={{ width: "100%", borderRadius: 12, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)" }}
+									onClick={() => setLightboxImg(`http://localhost:8001${detailModal.evidence_url}`)}
+								/>
+							</div>
+						)}
+
+						<div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+							<button 
+								className="gov-btn gov-btn-save" 
+								style={{ background: "rgba(16, 185, 129, 0.2)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.3)" }}
+								onClick={() => resolveIndividual(detailModal.id)}
+							>
+								Confirm Resolution
+							</button>
 						</div>
 					</div>
 				</div>
@@ -818,7 +913,7 @@ const GovDashboard = () => {
 			{/* Lightbox */}
 			{lightboxImg && (
 				<div className="gov-lightbox" onClick={() => setLightboxImg(null)}>
-					<img src={lightboxImg} alt="Evidence Preview" />
+					<img src={lightboxImg} alt="Enlarged" />
 				</div>
 			)}
 		</>
