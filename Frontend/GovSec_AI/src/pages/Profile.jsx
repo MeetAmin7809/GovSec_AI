@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
+const API_BASE = "http://localhost:8001/api/v1";
+import ChatWidget from "../components/ChatWidget";
 import {
 	User,
 	Mail,
@@ -18,39 +22,81 @@ import {
 	LogOut,
 	ArrowLeft,
     CreditCard,
-    Key
+    Key,
+    Smartphone,
+    Award
 } from "lucide-react";
 
 const Profile = () => {
 	const navigate = useNavigate();
-    const [isEditing, setIsEditing] = useState(false);
 	const [activeTab, setActiveTab] = useState("overview");
 	const [userInfo, setUserInfo] = useState({
 		name: "Verified Citizen",
-		email: "citizen@govsecai.gov",
+		email: "",
 		phone: "Not provided",
-		address: "Not provided",
 		aadhaar: "XXXX-XXXX-XXXX",
 		dob: "Not provided",
 	});
 
 	useEffect(() => {
-		const user = JSON.parse(sessionStorage.getItem("govsec_user"));
-		if (user) {
-			setUserInfo({
-				...userInfo,
-				name: user.name || user.username || "Verified Citizen",
-				email: user.email,
-                phone: user.phone || "Not provided",
-                address: user.address || "Not provided"
-			});
-		}
+		const sessionData = JSON.parse(sessionStorage.getItem("govsec_user"));
+		if (!sessionData) {
+            toast.warning("Secure Session Required. Redirecting...");
+            navigate("/signin");
+            return;
+        }
+
+        const user = sessionData.user || sessionData;
+            
+        // Initial load from session
+        setUserInfo(prev => ({
+            ...prev,
+            name: `${user.firstname} ${user.lastname}` || "Verified Citizen",
+            email: user.email,
+            phone: user.phonenumber || "Not provided",
+        }));
+
+            // Fetch live data from server to ensure fresh data (fixes missing phone issue)
+            const fetchProfile = async () => {
+                try {
+                    const response = await axios.get(`${API_BASE}/auth/profile/${user.email}`);
+                    if (response.data.success) {
+                        const freshUser = response.data.data;
+                        setUserInfo(prev => ({
+                            ...prev,
+                            name: `${freshUser.firstname} ${freshUser.lastname}`,
+                            phone: freshUser.phonenumber || "Not provided",
+                        }));
+                        
+                        // Sync back to session storage
+                        const updatedSession = { ...sessionData };
+                        if (updatedSession.user) {
+                            updatedSession.user.phonenumber = freshUser.phonenumber;
+                            updatedSession.user.firstname = freshUser.firstname;
+                            updatedSession.user.lastname = freshUser.lastname;
+                        } else {
+                            updatedSession.phonenumber = freshUser.phonenumber;
+                            updatedSession.firstname = freshUser.firstname;
+                            updatedSession.lastname = freshUser.lastname;
+                        }
+                        sessionStorage.setItem("govsec_user", JSON.stringify(updatedSession));
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch fresh profile:", err);
+                }
+            };
+
+            fetchProfile();
 	}, []);
 
 	const handleLogout = () => {
 		sessionStorage.clear();
 		navigate("/signin");
 	};
+
+    const handleSave = async () => {
+        // Functionality removed as per request to remove editing
+    };
 
 	return (
 		<div className="min-h-screen bg-[#020617] text-white selection:bg-[#0ed7b2]/30 selection:text-[#0ed7b2] font-sans">
@@ -111,9 +157,6 @@ const Profile = () => {
                         <div className="gov-card p-0 overflow-hidden">
                             <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
                                 <h3 className="text-sm font-black tracking-widest text-slate-400 uppercase">Identity Parameters</h3>
-                                <button onClick={() => setIsEditing(!isEditing)} className="text-[#0ed7b2] text-[10px] font-black tracking-widest uppercase hover:underline">
-                                    {isEditing ? "Cancel" : "Modify"}
-                                </button>
                             </div>
                             <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
                                 <div className="space-y-1">
@@ -131,10 +174,6 @@ const Profile = () => {
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Biological DOB</label>
                                     <div className="text-sm font-bold tracking-tight uppercase">{userInfo.dob}</div>
-                                </div>
-                                <div className="sm:col-span-2 space-y-1 pt-4 border-t border-white/5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Primary Residence</label>
-                                    <div className="text-sm font-bold tracking-tight uppercase">{userInfo.address}</div>
                                 </div>
                             </div>
                         </div>
@@ -225,6 +264,7 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
+            <ChatWidget />
 		</div>
 	);
 };
