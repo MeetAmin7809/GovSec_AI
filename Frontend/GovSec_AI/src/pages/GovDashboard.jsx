@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import AdminSchemesPanel from "../components/AdminSchemesPanel";
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -492,6 +493,7 @@ const GovDashboard = () => {
 		{ key: "road", label: "Road Complaints" },
 		{ key: "health", label: "Health Complaints" },
 		{ key: "fraud", label: "Banking Fraud" },
+		{ key: "schemes", label: "Scheme Management" },
 	];
 
 	return (
@@ -776,6 +778,13 @@ const GovDashboard = () => {
 									</div>
 								</div>
 							</div>
+						</div>
+					)}
+
+					{/* SCHEMES */}
+					{activeModule === "schemes" && (
+						<div className="gov-panel">
+							<AdminSchemesPanel />
 						</div>
 					)}
 				</main>
