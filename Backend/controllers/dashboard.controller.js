@@ -1,13 +1,15 @@
-const db = require("../config/sqlite.config.js");
 const response = require("../utils/responseHandler.util.js");
+const RoadComplaint = require("../models/roadComplaint.model.js");
+const HealthComplaint = require("../models/healthComplaint.model.js");
+const BankingFraud = require("../models/bankingFraud.model.js");
 
 class DashboardController {
 	// --- STATS ---
-	static getStats(req, res) {
+	static async getStats(req, res) {
 		try {
-			const roadCount = db.prepare("SELECT COUNT(*) as c FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
-			const healthCount = db.prepare("SELECT COUNT(*) as c FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
-			const fraudCount = db.prepare("SELECT COUNT(*) as c FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved'").get().c;
+			const roadCount = await RoadComplaint.countDocuments({ status: { $ne: "Resolved" } });
+			const healthCount = await HealthComplaint.countDocuments({ status: { $ne: "Resolved" } });
+			const fraudCount = await BankingFraud.countDocuments({ status: { $ne: "Resolved" } });
 
 			const counts = {
 				road: roadCount,
@@ -30,54 +32,48 @@ class DashboardController {
 			// Alerts
 			const alerts = [];
 
-			const latestRoads = db
-				.prepare("SELECT * FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
-				.all();
+			const latestRoads = await RoadComplaint.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(10);
 			latestRoads.forEach((r) => {
 				alerts.push({
 					source: "Road",
-					date: r.date_reported,
-					sort_date: parseDateForSort(r.date_reported),
+					date: r.dateReported,
+					sort_date: parseDateForSort(r.dateReported),
 					description: r.description,
 					city: r.city,
 					area: r.area,
-					id: r.complaint_id,
-					evidence_url: r.evidence_url || null,
+					id: r.complaintId,
+					evidence_url: r.evidenceUrl || null,
 				});
 			});
 
-			const latestHealth = db
-				.prepare("SELECT * FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
-				.all();
+			const latestHealth = await HealthComplaint.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(10);
 			latestHealth.forEach((h) => {
 				alerts.push({
 					source: "Health",
-					date: h.date_reported,
-					sort_date: parseDateForSort(h.date_reported),
-					description: h.complaint_text,
+					date: h.dateReported,
+					sort_date: parseDateForSort(h.dateReported),
+					description: h.complaintText,
 					city: h.city,
 					area: h.area,
-					id: h.complaint_id,
-					evidence_url: h.evidence_url || null,
+					id: h.complaintId,
+					evidence_url: h.evidenceUrl || null,
 				});
 			});
 
-			const latestFraud = db
-				.prepare("SELECT * FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 10")
-				.all();
+			const latestFraud = await BankingFraud.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(10);
 			latestFraud.forEach((f) => {
 				alerts.push({
 					source: "Fraud",
-					date: f.timestamp ? f.timestamp.substring(0, 10) : "",
+					date: f.timestamp ? String(f.timestamp).substring(0, 10) : "",
 					sort_date: f.timestamp || "",
-					description: f.merchant_category,
-					city: f.location_city,
+					description: f.merchantCategory,
+					city: f.locationCity,
 					area: f.area,
-					id: f.transaction_id,
+					id: f.transactionId,
 				});
 			});
 
-			alerts.sort((a, b) => (b.sort_date || "").localeCompare(a.sort_date || ""));
+			alerts.sort((a, b) => String(b.sort_date || "").localeCompare(String(a.sort_date || "")));
 			const finalAlerts = alerts.slice(0, 10);
 
 			return res.json({
@@ -98,18 +94,26 @@ class DashboardController {
 	}
 
 	// --- LOCATIONS ---
-	static getLocations(req, res) {
+	static async getLocations(req, res) {
 		try {
-			// Get unique cities and areas from all tables
-			const roadRows = db.prepare("SELECT DISTINCT city, area FROM road_complaints WHERE city IS NOT NULL AND area IS NOT NULL").all();
-			const healthRows = db.prepare("SELECT DISTINCT city, area FROM health_complaints WHERE city IS NOT NULL AND area IS NOT NULL").all();
-			const fraudRows = db.prepare("SELECT DISTINCT location_city as city, area FROM banking_fraud WHERE location_city IS NOT NULL AND area IS NOT NULL").all();
+			const roadRows = await RoadComplaint.aggregate([
+                { $match: { city: { $exists: true, $ne: null }, area: { $exists: true, $ne: null } } },
+                { $group: { _id: { city: "$city", area: "$area" } } }
+            ]);
+            const healthRows = await HealthComplaint.aggregate([
+                { $match: { city: { $exists: true, $ne: null }, area: { $exists: true, $ne: null } } },
+                { $group: { _id: { city: "$city", area: "$area" } } }
+            ]);
+            const fraudRows = await BankingFraud.aggregate([
+                { $match: { locationCity: { $exists: true, $ne: null }, area: { $exists: true, $ne: null } } },
+                { $group: { _id: { city: "$locationCity", area: "$area" } } }
+            ]);
 
 			const allObj = {};
 			
 			[...roadRows, ...healthRows, ...fraudRows].forEach(row => {
-				const cName = row.city.trim();
-				const aName = row.area.trim();
+				const cName = row._id.city ? String(row._id.city).trim() : "";
+				const aName = row._id.area ? String(row._id.area).trim() : "";
 				if (!cName || !aName) return;
 				
 				if (!allObj[cName]) allObj[cName] = new Set();
@@ -129,59 +133,68 @@ class DashboardController {
 	}
 
 	// --- ROAD ---
-	static getRoadSummary(req, res) {
+	static async getRoadSummary(req, res) {
 		try {
-			const rows = db
-				.prepare("SELECT city, COUNT(*) as count FROM road_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY city")
-				.all();
+			const rows = await RoadComplaint.aggregate([
+                { $match: { status: { $ne: "Resolved" } } },
+                { $group: { _id: "$city", count: { $sum: 1 } } }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.city] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ complaints_by_city: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getRoadAreas(req, res) {
+	static async getRoadAreas(req, res) {
 		try {
 			const { city } = req.params;
-			const rows = db
-				.prepare(
-					"SELECT area, COUNT(*) as count FROM road_complaints WHERE LOWER(city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
-				)
-				.all(city);
+			const rows = await RoadComplaint.aggregate([
+                { $match: { city: { $regex: new RegExp("^" + city + "$", "i") }, status: { $ne: "Resolved" } } },
+                { $group: { _id: "$area", count: { $sum: 1 } } },
+                { $limit: 15 }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.area] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ area_counts: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getRoadList(req, res) {
+	static async getRoadList(req, res) {
 		try {
 			const { city, area } = req.params;
-			const rows = db
-				.prepare("SELECT * FROM road_complaints WHERE city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'")
-				.all(city, area);
-			return res.json(rows);
+			const rows = await RoadComplaint.find({
+                city: { $regex: new RegExp("^" + city + "$", "i") },
+                area: { $regex: new RegExp("^" + area + "$", "i") },
+                status: { $ne: "Resolved" }
+            }).lean();
+
+			return res.json(rows.map(r => ({ ...r, date_reported: r.dateReported, area_status: r.areaStatus, evidence_url: r.evidenceUrl, complaint_id: r.complaintId })));
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getRecentModuleComplaints(req, res) {
+	static async getRecentModuleComplaints(req, res) {
 		try {
 			const { module } = req.params;
-			const tableMap = {
-				road: { table: "road_complaints", idCol: "complaint_id", dateCol: "date_reported" },
-				health: { table: "health_complaints", idCol: "complaint_id", dateCol: "date_reported" },
-				fraud: { table: "banking_fraud", idCol: "transaction_id", dateCol: "timestamp" }
-			};
-			const cfg = tableMap[module];
-			if (!cfg) return response(res, 400, null, "Invalid module");
-
-			const rows = db.prepare(`SELECT * FROM ${cfg.table} WHERE COALESCE(status, 'Pending') != 'Resolved' ORDER BY id DESC LIMIT 50`).all();
+			let rows = [];
+            if (module === "road") {
+                rows = await RoadComplaint.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(50).lean();
+                rows = rows.map(r => ({ ...r, date_reported: r.dateReported, area_status: r.areaStatus, evidence_url: r.evidenceUrl, complaint_id: r.complaintId, id: r._id }));
+            } else if (module === "health") {
+                rows = await HealthComplaint.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(50).lean();
+                rows = rows.map(r => ({ ...r, date_reported: r.dateReported, area_status: r.areaStatus, evidence_url: r.evidenceUrl, complaint_id: r.complaintId, id: r._id }));
+            } else if (module === "fraud") {
+                rows = await BankingFraud.find({ status: { $ne: "Resolved" } }).sort({ _id: -1 }).limit(50).lean();
+                rows = rows.map(r => ({ ...r, area_status: r.areaStatus, evidence_url: r.evidenceUrl, transaction_id: r.transactionId, location_city: r.locationCity, id: r._id }));
+            } else {
+                return response(res, 400, null, "Invalid module");
+            }
+			
 			return res.json(rows);
 		} catch (e) {
 			console.error("Recent complaints error:", e);
@@ -190,192 +203,185 @@ class DashboardController {
 	}
 
 	// --- HEALTH ---
-	static getHealthSummary(req, res) {
+	static async getHealthSummary(req, res) {
 		try {
-			const rows = db
-				.prepare("SELECT city, COUNT(*) as count FROM health_complaints WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY city")
-				.all();
+            const rows = await HealthComplaint.aggregate([
+                { $match: { status: { $ne: "Resolved" } } },
+                { $group: { _id: "$city", count: { $sum: 1 } } }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.city] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ complaints_by_city: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getHealthAreas(req, res) {
+	static async getHealthAreas(req, res) {
 		try {
 			const { city } = req.params;
-			const rows = db
-				.prepare(
-					"SELECT area, COUNT(*) as count FROM health_complaints WHERE LOWER(city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
-				)
-				.all(city);
+			const rows = await HealthComplaint.aggregate([
+                { $match: { city: { $regex: new RegExp("^" + city + "$", "i") }, status: { $ne: "Resolved" } } },
+                { $group: { _id: "$area", count: { $sum: 1 } } },
+                { $limit: 15 }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.area] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ area_counts: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getHealthList(req, res) {
+	static async getHealthList(req, res) {
 		try {
 			const { city, area } = req.params;
-			const rows = db
-				.prepare("SELECT * FROM health_complaints WHERE city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'")
-				.all(city, area);
-			return res.json(rows);
+			const rows = await HealthComplaint.find({
+                city: { $regex: new RegExp("^" + city + "$", "i") },
+                area: { $regex: new RegExp("^" + area + "$", "i") },
+                status: { $ne: "Resolved" }
+            }).lean();
+
+			return res.json(rows.map(r => ({ ...r, date_reported: r.dateReported, area_status: r.areaStatus, evidence_url: r.evidenceUrl, complaint_id: r.complaintId })));
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
 	// --- FRAUD ---
-	static getFraudSummary(req, res) {
+	static async getFraudSummary(req, res) {
 		try {
-			const rows = db
-				.prepare(
-					"SELECT location_city, COUNT(*) as count FROM banking_fraud WHERE COALESCE(status, 'Pending') != 'Resolved' GROUP BY location_city"
-				)
-				.all();
+			const rows = await BankingFraud.aggregate([
+                { $match: { status: { $ne: "Resolved" } } },
+                { $group: { _id: "$locationCity", count: { $sum: 1 } } }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.location_city] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ fraud_by_city: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getFraudAreas(req, res) {
+	static async getFraudAreas(req, res) {
 		try {
 			const { city } = req.params;
-			const rows = db
-				.prepare(
-					"SELECT area, COUNT(*) as count FROM banking_fraud WHERE LOWER(location_city) = LOWER(?) AND COALESCE(status, 'Pending') != 'Resolved' GROUP BY area LIMIT 15"
-				)
-				.all(city);
+			const rows = await BankingFraud.aggregate([
+                { $match: { locationCity: { $regex: new RegExp("^" + city + "$", "i") }, status: { $ne: "Resolved" } } },
+                { $group: { _id: "$area", count: { $sum: 1 } } },
+                { $limit: 15 }
+            ]);
 			const result = {};
-			rows.forEach((r) => (result[r.area] = r.count));
+			rows.forEach((r) => { if(r._id) result[r._id] = r.count; });
 			return res.json({ area_counts: result });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static getFraudList(req, res) {
+	static async getFraudList(req, res) {
 		try {
 			const { city, area } = req.params;
-			const rows = db
-				.prepare(
-					"SELECT * FROM banking_fraud WHERE location_city = ? AND area = ? AND COALESCE(status, 'Pending') != 'Resolved'"
-				)
-				.all(city, area);
-			return res.json(rows);
+			const rows = await BankingFraud.find({
+                locationCity: { $regex: new RegExp("^" + city + "$", "i") },
+                area: { $regex: new RegExp("^" + area + "$", "i") },
+                status: { $ne: "Resolved" }
+            }).lean();
+
+			return res.json(rows.map(r => ({ ...r, area_status: r.areaStatus, evidence_url: r.evidenceUrl, location_city: r.locationCity, transaction_id: r.transactionId })));
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
 	// --- GENERIC AREA STATUS (works for all modules) ---
-	static getAreaStatus(req, res) {
+	static async getAreaStatus(req, res) {
 		try {
 			const { module, city, area } = req.params;
-			const tableMap = {
-				road: { table: "road_complaints", cityCol: "city" },
-				health: { table: "health_complaints", cityCol: "city" },
-				fraud: { table: "banking_fraud", cityCol: "location_city" },
-			};
-			const cfg = tableMap[module];
-			if (!cfg) return response(res, 400, null, "Invalid module");
-
-			const row = db
-				.prepare(
-					`SELECT area_status FROM ${cfg.table} WHERE LOWER(${cfg.cityCol}) = LOWER(?) AND LOWER(area) = LOWER(?) LIMIT 1`
-				)
-				.get(city, area);
-			return res.json({ status: row ? row.area_status : "Pending" });
+            let row = null;
+            if (module === "road") {
+                row = await RoadComplaint.findOne({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else if (module === "health") {
+                row = await HealthComplaint.findOne({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else if (module === "fraud") {
+                row = await BankingFraud.findOne({ locationCity: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else {
+                return response(res, 400, null, "Invalid module");
+            }
+			
+			return res.json({ status: row ? row.areaStatus : "Pending" });
 		} catch (e) {
 			return response(res, 500, null, "Error");
 		}
 	}
 
-	static updateAreaStatus(req, res) {
+	static async updateAreaStatus(req, res) {
 		try {
 			const { module, city, area } = req.params;
 			const { status } = req.body;
-			const tableMap = {
-				road: { table: "road_complaints", cityCol: "city" },
-				health: { table: "health_complaints", cityCol: "city" },
-				fraud: { table: "banking_fraud", cityCol: "location_city" },
-			};
-			const cfg = tableMap[module];
-			if (!cfg) return response(res, 400, null, "Invalid module");
-
-			db.prepare(
-				`UPDATE ${cfg.table} SET area_status = ? WHERE LOWER(${cfg.cityCol}) = LOWER(?) AND LOWER(area) = LOWER(?)`
-			).run(status, city, area);
+			if (module === "road") {
+                await RoadComplaint.updateMany({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } }, { $set: { areaStatus: status } });
+            } else if (module === "health") {
+                await HealthComplaint.updateMany({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } }, { $set: { areaStatus: status } });
+            } else if (module === "fraud") {
+                await BankingFraud.updateMany({ locationCity: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } }, { $set: { areaStatus: status } });
+            } else {
+                return response(res, 400, null, "Invalid module");
+            }
 			return res.json({ status: "updated" });
 		} catch (e) {
 			return response(res, 500, null, "Error updating status");
 		}
 	}
 
-	static resolveArea(req, res) {
+	static async resolveArea(req, res) {
 		try {
 			const { module, city, area } = req.params;
-			const tableMap = {
-				road: { table: "road_complaints", cityCol: "city" },
-				health: { table: "health_complaints", cityCol: "city" },
-				fraud: { table: "banking_fraud", cityCol: "location_city" },
-			};
-			const cfg = tableMap[module];
-			if (!cfg) return response(res, 400, null, "Invalid module");
+			let result = { deletedCount: 0 };
 
-			const result = db
-				.prepare(
-					`DELETE FROM ${cfg.table} WHERE LOWER(${cfg.cityCol}) = LOWER(?) AND LOWER(area) = LOWER(?)`
-				)
-				.run(city, area);
-			return res.json({ status: "resolved", removed_count: result.changes });
+            if (module === "road") {
+                result = await RoadComplaint.deleteMany({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else if (module === "health") {
+                result = await HealthComplaint.deleteMany({ city: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else if (module === "fraud") {
+                result = await BankingFraud.deleteMany({ locationCity: { $regex: new RegExp("^" + city + "$", "i") }, area: { $regex: new RegExp("^" + area + "$", "i") } });
+            } else {
+                return response(res, 400, null, "Invalid module");
+            }
+			
+			return res.json({ status: "resolved", removed_count: result.deletedCount });
 		} catch (e) {
 			return response(res, 500, null, "Error resolving");
 		}
 	}
 
 	// --- TRACK COMPLAINT ---
-	static trackComplaint(req, res) {
+	static async trackComplaint(req, res) {
 		try {
 			const { complaint_id } = req.params;
 
-			const road = db
-				.prepare("SELECT * FROM road_complaints WHERE complaint_id = ?")
-				.get(complaint_id);
+			const road = await RoadComplaint.findOne({ complaintId: complaint_id }).lean();
 			if (road)
 				return res.json({
 					type: "Road",
-					status: road.area_status || "pending",
-					details: road,
+					status: road.areaStatus || "pending",
+					details: { ...road, date_reported: road.dateReported, area_status: road.areaStatus, evidence_url: road.evidenceUrl },
 				});
 
-			const health = db
-				.prepare("SELECT * FROM health_complaints WHERE complaint_id = ?")
-				.get(complaint_id);
+			const health = await HealthComplaint.findOne({ complaintId: complaint_id }).lean();
 			if (health)
 				return res.json({
 					type: "Health",
-					status: health.area_status || "pending",
-					details: health,
+					status: health.areaStatus || "pending",
+					details: { ...health, date_reported: health.dateReported, area_status: health.areaStatus, evidence_url: health.evidenceUrl },
 				});
 
-			const fraud = db
-				.prepare("SELECT * FROM banking_fraud WHERE transaction_id = ?")
-				.get(complaint_id);
+			const fraud = await BankingFraud.findOne({ transactionId: complaint_id }).lean();
 			if (fraud)
 				return res.json({
 					type: "Banking",
-					status: fraud.area_status || "pending",
-					details: fraud,
+					status: fraud.areaStatus || "pending",
+					details: { ...fraud, area_status: fraud.areaStatus, evidence_url: fraud.evidenceUrl, location_city: fraud.locationCity },
 				});
 
 			return response(res, 404, null, "Complaint ID not found");
@@ -385,33 +391,31 @@ class DashboardController {
 	}
 
 	// --- CITIZEN SPECIFIC ---
-	static getCitizenComplaints(req, res) {
+	static async getCitizenComplaints(req, res) {
 		try {
 			const { email } = req.params;
 			if (!email) return response(res, 400, null, "Email is required");
 
-			const road = db
-				.prepare("SELECT *, 'Road' as source FROM road_complaints WHERE citizen_email = ?")
-				.all(email);
-			const health = db
-				.prepare("SELECT *, 'Health' as source FROM health_complaints WHERE citizen_email = ?")
-				.all(email);
-			const fraud = db
-				.prepare("SELECT *, 'Fraud' as source FROM banking_fraud WHERE citizen_email = ?")
-				.all(email);
+			const road = await RoadComplaint.find({ citizenEmail: email }).lean();
+			const health = await HealthComplaint.find({ citizenEmail: email }).lean();
+			const fraud = await BankingFraud.find({ citizenEmail: email }).lean();
 
-			const all = [...road, ...health, ...fraud].sort((a, b) => {
+            const roadMap = road.map(r => ({ ...r, source: "Road", date_reported: r.dateReported }));
+            const healthMap = health.map(h => ({ ...h, source: "Health", date_reported: h.dateReported }));
+            const fraudMap = fraud.map(f => ({ ...f, source: "Fraud" }));
+
+			const all = [...roadMap, ...healthMap, ...fraudMap].sort((a, b) => {
 				const dateA = a.date_reported || a.timestamp || "";
 				const dateB = b.date_reported || b.timestamp || "";
-				return dateB.localeCompare(dateA);
+				return String(dateB).localeCompare(String(dateA));
 			});
 
 			// Map to frontend expectations
 			const formatted = all.map(c => ({
-				id: c.complaint_id || c.transaction_id,
+				id: c.complaintId || c.transactionId,
 				type: c.source === "Road" ? "road" : c.source === "Health" ? "health" : "banking",
-				title: c.description || c.complaint_text || c.merchant_category || "No description",
-				location: `${c.area || ''}, ${c.city || c.location_city || ''}`.replace(/^, | , $/g, ''),
+				title: c.description || c.complaintText || c.merchantCategory || "No description",
+				location: `${c.area || ''}, ${c.city || c.locationCity || ''}`.replace(/^, | , $/g, ''),
 				priority: c.priority || c.severity || "Medium",
 				status: c.status || "Pending",
 				date: c.date_reported || c.timestamp
@@ -424,7 +428,7 @@ class DashboardController {
 		}
 	}
 
-	static fileComplaint(req, res) {
+	static async fileComplaint(req, res) {
 		try {
 			const { module, city, area, description, citizen_email, evidence_url } = req.body;
 			if (!module || !city || !area || !description || !citizen_email) {
@@ -435,17 +439,26 @@ class DashboardController {
 			const id = "C-" + Math.floor(Math.random() * 1000000);
 
 			if (module === "road") {
-				db.prepare(
-					"INSERT INTO road_complaints (complaint_id, date_reported, city, area, description, status, priority, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-				).run(id, date, city, area, description, "Pending", "Medium", "Pending", citizen_email, evidence_url || null);
+                const doc = new RoadComplaint({
+                    complaintId: id, dateReported: date, city, area, description, 
+                    status: "Pending", priority: "Medium", areaStatus: "Pending", 
+                    citizenEmail: citizen_email, evidenceUrl: evidence_url || null
+                });
+                await doc.save();
 			} else if (module === "health") {
-				db.prepare(
-					"INSERT INTO health_complaints (complaint_id, date_reported, city, area, complaint_text, category, severity, status, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-				).run(id, date, city, area, description, "General", "Medium", "Pending", "Pending", citizen_email, evidence_url || null);
+				const doc = new HealthComplaint({
+                    complaintId: id, dateReported: date, city, area, complaintText: description, 
+                    category: "General", severity: "Medium", status: "Pending", areaStatus: "Pending", 
+                    citizenEmail: citizen_email, evidenceUrl: evidence_url || null
+                });
+                await doc.save();
 			} else if (module === "fraud" || module === "banking") {
-				db.prepare(
-					"INSERT INTO banking_fraud (transaction_id, timestamp, location_city, area, merchant_category, risk_score, is_fraud, status, area_status, citizen_email, evidence_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-				).run(id, new Date().toISOString(), city, area, description, 50, "Yes", "Pending", "Pending", citizen_email, evidence_url || null);
+				const doc = new BankingFraud({
+                    transactionId: id, timestamp: new Date().toISOString(), locationCity: city, area, 
+                    merchantCategory: description, riskScore: 50, isFraud: "Yes", status: "Pending", 
+                    areaStatus: "Pending", citizenEmail: citizen_email, evidenceUrl: evidence_url || null
+                });
+                await doc.save();
 			} else {
 				return response(res, 400, null, "Invalid module");
 			}
@@ -457,21 +470,18 @@ class DashboardController {
 		}
 	}
 
-	static resolveComplaint(req, res) {
+	static async resolveComplaint(req, res) {
 		try {
 			const { id } = req.params;
 
-			// Try road
-			let result = db.prepare("UPDATE road_complaints SET status = 'Resolved' WHERE complaint_id = ?").run(id);
-			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+			const road = await RoadComplaint.findOneAndUpdate({ complaintId: id }, { status: "Resolved" });
+			if (road) return response(res, 200, null, "Complaint resolved");
 
-			// Try health
-			result = db.prepare("UPDATE health_complaints SET status = 'Resolved' WHERE complaint_id = ?").run(id);
-			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+			const health = await HealthComplaint.findOneAndUpdate({ complaintId: id }, { status: "Resolved" });
+			if (health) return response(res, 200, null, "Complaint resolved");
 
-			// Try fraud
-			result = db.prepare("UPDATE banking_fraud SET status = 'Resolved' WHERE transaction_id = ?").run(id);
-			if (result.changes > 0) return response(res, 200, null, "Complaint resolved");
+			const fraud = await BankingFraud.findOneAndUpdate({ transactionId: id }, { status: "Resolved" });
+			if (fraud) return response(res, 200, null, "Complaint resolved");
 
 			return response(res, 404, null, "Complaint not found");
 		} catch (e) {
@@ -481,7 +491,7 @@ class DashboardController {
 	}
 
 	// --- PING ---
-	static ping(req, res) {
+	static async ping(req, res) {
 		return res.json({ status: "ok" });
 	}
 }
@@ -491,7 +501,7 @@ function parseDateForSort(dateStr) {
 	if (!dateStr) return "0000-00-00";
 	try {
 		if (dateStr.includes("T")) return dateStr;
-		const parts = dateStr.split("-");
+		const parts = String(dateStr).split("-");
 		if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
 		return dateStr;
 	} catch {
