@@ -2,6 +2,8 @@ import axios from "axios";
 import {
     Activity,
     AlertCircle,
+    BookOpen,
+    Bot,
     Construction,
     CreditCard,
     FileWarning,
@@ -19,6 +21,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "react-toastify";
 import ChatWidget from "../components/ChatWidget";
+import SchemesPanel from "../components/SchemesPanel";
+import AIAdvisorPanel from "../components/AIAdvisorPanel";
 import {
     Bar,
     BarChart,
@@ -35,6 +39,7 @@ const CitizenDashboard = () => {
     const navigate = useNavigate();
     // State
 	const [activeTab, setActiveTab] = useState("overview");
+	const [aiInitialMsg, setAiInitialMsg] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [userData, setUserData] = useState(null);
     const [complaints, setComplaints] = useState([]);
@@ -148,6 +153,8 @@ const CitizenDashboard = () => {
                 <div className="space-y-2 flex-1">
                     <SidebarItem id="overview" icon={LayoutDashboard} label="Strategic View" />
                     <SidebarItem id="complaints" icon={FileWarning} label="My Reports" />
+                    <SidebarItem id="schemes" icon={BookOpen} label="Gov Schemes" />
+                    <SidebarItem id="ai-advisor" icon={Bot} label="AI Advisor" />
                     <button
                         onClick={() => navigate("/profile")}
                         className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)] font-bold group transition-all duration-300"
@@ -175,7 +182,7 @@ const CitizenDashboard = () => {
                 <header className="sticky top-0 z-20 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-white/5 px-8 h-24 flex items-center justify-between">
                     <div>
                         <h2 className="gov-h2 text-2xl mb-1 uppercase tracking-widest font-black" style={{backgroundImage: 'none', WebkitBackgroundClip: 'initial', WebkitTextFillColor: 'var(--text-primary)'}}>
-                            {activeTab === "overview" ? "Strategic Intelligence" : activeTab === "complaints" ? "Citizen Complaints" : "Strategic Configuration"}
+                            {activeTab === "overview" ? "Strategic Intelligence" : activeTab === "complaints" ? "Citizen Complaints" : activeTab === "schemes" ? "Government Schemes" : activeTab === "ai-advisor" ? "AI Policy Advisor" : "Strategic Configuration"}
                         </h2>
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-[var(--primary-color)] animate-pulse" />
@@ -336,6 +343,22 @@ const CitizenDashboard = () => {
                                 </table>
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === "schemes" && (
+                        <SchemesPanel
+                            onAskAI={(msg) => {
+                                setAiInitialMsg(msg);
+                                setActiveTab("ai-advisor");
+                            }}
+                        />
+                    )}
+
+                    {activeTab === "ai-advisor" && (
+                        <AIAdvisorPanel
+                            initialMessage={aiInitialMsg}
+                            key={aiInitialMsg}
+                        />
                     )}
 
                     {activeTab === "settings" && (
